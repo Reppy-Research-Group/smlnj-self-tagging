@@ -30,6 +30,8 @@ CFUNC("mkCodeObj",      _ml_RunT_mk_code_obj,   "Word8Vector.vector -> Word8Vect
 CFUNC("mkExec",		_ml_RunT_mkexec,	"Word8Vector.vector * int -> object -> object")
 CFUNC("mkLiterals",	_ml_RunT_mkliterals,	"Word8Vector.vector -> ovec")
 CFUNC("sysInfo",	_ml_RunT_sysinfo,	"string -> string option")
+CFUNC("profCounterClear", _ml_RunT_prof_counter_clear, "int -> unit")
+CFUNC("profCounterRead" , _ml_RunT_prof_counter_read, "unit -> int list")
 CFUNC("record1",	_ml_RunT_record1,	"object -> object")
 CFUNC("recordConcat",	_ml_RunT_recordconcat,	"(object * object) -> object")
 CFUNC("setIntTimer",	_ml_RunT_setitimer,	"word64 option -> unit")

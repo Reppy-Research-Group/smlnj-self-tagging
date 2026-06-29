@@ -34,6 +34,10 @@
 #include "valgrind/memcheck.h"
 #endif
 
+/* Profiler counters, see c-libs/smlnj-runtime/prof-counter.c */
+static Word_t PROF_COUNTERS_A[MAX_PROF_COUNTERS] = { 0 };
+ml_val_t prof_counters_p = PTR_CtoML(PROF_COUNTERS_A + 1);
+
 /* local functions */
 PVT void UncaughtExn (ml_val_t e);
 
@@ -97,6 +101,8 @@ void RunML (ml_state_t *msp)
     int         request;
     vproc_state_t *vsp = msp->ml_vproc;
     ml_val_t    prevProfIndex = PROF_OTHER;
+
+    msp->ml_varReg = prof_counters_p;
 
     for (;;) {
 
