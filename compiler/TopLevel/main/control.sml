@@ -102,6 +102,8 @@ structure Control_CG : CGCONTROL =
     val verifyLLVM = new (b, "verify-llvm", "enable verification of generated LLVM code", false)
     val debugSpill = new (b, "debug-cps-spill", "enable CPS spill debugging", false)
     val debugSpillInfo = new (b, "debug_cps_spill_info", "enable CPS spill info", false)
+
+    val instrument = new (b, "instrument", "insert instrumentation after WRAP", false)
   end (* structure Control_CG *)
 
 

@@ -62,6 +62,8 @@ signature CGCONTROL =
     val verifyLLVM : bool ref
     val debugSpill : bool ref
     val debugSpillInfo : bool ref
+
+    val instrument : bool ref
   end (* signature CGCONTROL *)
 
 (* main Control structure *)

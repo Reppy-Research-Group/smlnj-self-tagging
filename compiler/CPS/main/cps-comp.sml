@@ -126,6 +126,11 @@ functor CPSCompFn (MachSpec : MACH_SPEC) : CPS_COMP = struct
 		then newlitsplit function
 		else litsplit function
 	  val _ = check "after lit-split" function
+          val function =
+            if !Control.CG.instrument then
+              prC "after instrument" (InstrumentWrap.instrument function)
+            else
+              prC "no instrument" function
 	  (* convert CPS to closure-passing style *)
 	  val function = prC "after closure" (closure function)
 	  (* flatten to 1st-order CPS *)
