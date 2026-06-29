@@ -114,7 +114,10 @@ structure Overload : OVERLOAD =
 	        fun resolveOVLDlit (value, _, Ty.VARty tyvar, _) =
 		    (case !tyvar
 		      of Ty.OVLDI _ =>
-			 (tyvar := Ty.INSTANTIATED BT.intTy)  (* default *)
+                         if !ElabControl.default64 then
+                           (tyvar := Ty.INSTANTIATED BT.int64Ty)
+                         else
+                           (tyvar := Ty.INSTANTIATED BT.intTy)
 		       | Ty.OVLDW _ =>
 			 (tyvar := Ty.INSTANTIATED BT.wordTy) (* default *)
 		       | Ty.INSTANTIATED ty => ()

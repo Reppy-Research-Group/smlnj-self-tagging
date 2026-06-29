@@ -62,4 +62,7 @@ signature ELAB_CONTROL =
   (* show culprits in type error messages (default false) *)
     val showTypeErrorCulprits : bool ref
 
+  (* default integer type *)
+    val default64 : bool ref
+
   end (* signature ELAB_CONTROL *)

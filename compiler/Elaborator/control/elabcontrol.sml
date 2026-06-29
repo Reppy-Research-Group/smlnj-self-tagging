@@ -111,6 +111,11 @@ structure ElabControl : ELAB_CONTROL =
 	  "show culprits in type error messages",
 	  false)
 
+    val default64 = cnew (
+	  "default64",
+	  "resolve integer type-class to Int64",
+	  false)
+
     end (* local *)
 
   end (* structure ElabControl *)
