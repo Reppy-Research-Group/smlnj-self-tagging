@@ -21,6 +21,7 @@ local
     structure TU = TypesUtil
     structure V = Variable
     structure OLC = OverloadClasses
+    structure OLC64 = OverloadClasses64
 in
 
 fun bug msg = ErrorMsg.impossible("OverloadVar: "^msg)
@@ -71,12 +72,28 @@ val overloadTable : entry list =
      (greaterEqual, relationScheme,   OLC.num_textClass),
      (abssym,       unaryScheme,      OLC.int_realClass)]
 
+val overloadTable64 : entry list =
+    [(negation,     unaryScheme,      OLC64.numClass),
+     (plus,         binaryScheme,     OLC64.numClass),
+     (minus,        binaryScheme,     OLC64.numClass),
+     (times,        binaryScheme,     OLC64.numClass),
+     (divsym,       binaryScheme,     OLC64.int_wordClass),
+     (modsym,       binaryScheme,     OLC64.int_wordClass),
+     (less,         relationScheme,   OLC64.num_textClass),
+     (lessEqual,    relationScheme,   OLC64.num_textClass),
+     (greater,      relationScheme,   OLC64.num_textClass),
+     (greaterEqual, relationScheme,   OLC64.num_textClass),
+     (abssym,       unaryScheme,      OLC64.int_realClass)]
+
 fun lookup (s : S.symbol) : entry option =
     let fun look ((entry as (s',_,_)) :: rest) =
 	    if Symbol.eq(s,s') then SOME entry
 	    else look rest
           | look nil = NONE
-    in look overloadTable
+    in if !ElabControl.default64 then
+          look overloadTable64
+       else
+          look overloadTable
     end
 
 fun symToScheme (s: S.symbol) : T.tyfun =
@@ -105,6 +122,10 @@ fun resolveVar (name: S.symbol, indicator: T.ty, variants) : V.var option =
 	    in get (class, variants)
 	    end
     in getVariant (indicator, symToClass name, variants)
+       handle e => (app print [
+         "class: [", String.concatWithMap "," TU.tyToString (symToClass name), "]\n",
+         "vars : [", String.concatWithMap "," Variable.toString variants, "]\n"
+        ]; raise e)
     end
 
 end (* local *)

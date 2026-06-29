@@ -46,6 +46,7 @@ is
 
 	types/unify.sml
 	types/overloadclasses.sml
+	types/overloadclasses64.sml
 	types/overloadvar.sml
 	types/overload.sml
 	types/typecheck.sml

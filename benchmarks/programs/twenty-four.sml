@@ -136,7 +136,7 @@ signature LIST_2004 =
 
     exception Empty
 
-    val null : 'a list -> bool 
+    val null : 'a list -> bool
     val hd   : 'a list -> 'a                (* raises Empty *)
     val tl   : 'a list -> 'a list           (* raises Empty *)
     val last : 'a list -> 'a                (* raises Empty *)
@@ -147,9 +147,9 @@ signature LIST_2004 =
     val take : 'a list * int -> 'a list  (* raises Subscript *)
     val drop : 'a list * int -> 'a list  (* raises Subscript *)
 
-    val length : 'a list -> int 
+    val length : 'a list -> int
 
-    val rev : 'a list -> 'a list 
+    val rev : 'a list -> 'a list
 
     val @         : 'a list * 'a list -> 'a list
     val concat    : 'a list list -> 'a list
@@ -556,7 +556,7 @@ structure TwentyFour : TWENTY_FOUR = struct
       | Prod of expr * expr
       | Quot of expr * expr
 
-    fun eval (Const c) = Real.fromInt c
+    fun eval (Const c) = real c
       | eval (Sum  (e1, e2)) = eval e1 + eval e2
       | eval (Diff (e1, e2)) = eval e1 - eval e2
       | eval (Prod (e1, e2)) = eval e1 * eval e2

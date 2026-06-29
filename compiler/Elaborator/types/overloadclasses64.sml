@@ -4,7 +4,7 @@
  * All rights reserved.
  *)
 
-structure OverloadClasses =
+structure OverloadClasses64 =
 struct
 
 local structure BT = BasicTypes in
@@ -13,9 +13,9 @@ local structure BT = BasicTypes in
   type class = Types.ty list
 
 (* overload classes *)
-    val intClass = [BT.intTy,
+    val intClass = [BT.int64Ty,
 		    BT.int32Ty,
-		    BT.int64Ty,
+		    BT.intTy,
 		    BT.intinfTy]
 
     val wordClass = [BT.wordTy,
