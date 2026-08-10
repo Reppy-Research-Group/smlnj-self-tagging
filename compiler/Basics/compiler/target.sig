@@ -19,6 +19,9 @@ signature TARGET =
   (* the size of the default "int" type *)
     val defaultIntSz : int
 
+  (* the size of tagged immediate integer values *)
+    val defaultTaggedIntSz : int
+
   (* the size of the FixedInt.int type *)
     val fixedIntSz : int
 

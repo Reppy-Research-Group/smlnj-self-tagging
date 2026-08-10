@@ -12,6 +12,7 @@ structure Target : TARGET =
     val pointerSz = 32
     val mlValueSz = 32
     val defaultIntSz = 31
+    val defaultTaggedIntSz = 31
     val fixedIntSz = 32
     val defaultRealSz = 64
     val is64 = false
