@@ -54,12 +54,11 @@ structure Switch : sig
   (* default integer type/values *)
     local
       val tt = {sz = Target.defaultIntSz, tag = true}
-      val et = {sz = Target.defaultTaggedIntSz, tag = true}
     in
     val tagNumTy = CPS.NUMt tt
     fun tagNum n = CPS.NUM{ival = n, ty = tt}
-    val tagEnumTy = CPS.NUMt et
-    fun tagEnum n = CPS.NUM{ival = n, ty = et}
+    val tagEnumTy = CPS.ENUMt
+    fun tagEnum n = CPS.ENUM(toI n)
     fun boxNumTy sz = CPS.NUMt{sz = sz, tag = false}
   (* operator numkinds for default tagged ints and words *)
     val tagIntKind = CPS.P.INT Target.defaultIntSz

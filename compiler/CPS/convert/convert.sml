@@ -52,13 +52,12 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
   (* integer types/values *)
     local
       val tt = {sz = Target.defaultIntSz, tag = true}
-      val et = {sz = Target.defaultTaggedIntSz, tag = true}
       fun bt sz = {sz = sz, tag = false}
     in
     val tagIntTy = NUMt tt
     fun tagInt n = NUM{ival = n, ty = tt}
     fun tagInt' n = tagInt(IntInf.fromInt n)
-    fun enumTag n = NUM{ival = IntInf.fromInt n, ty = et}
+    fun enumTag n = ENUM n
     fun boxIntTy sz = NUMt(bt sz)
     fun boxInt (sz, i) = NUM{ival = i, ty = bt sz}
   (* address-sized words *)
@@ -146,11 +145,13 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
 
   (* primwrap: cty -> P.pure *)
     fun primwrap (NUMt{sz, ...}) = P.WRAP(NK.INT sz)
+      | primwrap ENUMt = P.WRAP(NK.INT Target.defaultTaggedIntSz) (* DEFAULT64: Check this *)
       | primwrap (FLTt sz) = P.WRAP(NK.FLOAT sz)
       | primwrap _ = P.BOX
 
   (* primunwrap: cty -> P.pure *)
     fun primunwrap (NUMt{sz, ...}) = P.UNWRAP(NK.INT sz)
+      | primunwrap ENUMt = P.UNWRAP(NK.INT Target.defaultTaggedIntSz) (* DEFAULT64: Check this *)
       | primunwrap (FLTt sz) = P.UNWRAP(NK.FLOAT sz)
       | primunwrap _ = P.UNBOX
 

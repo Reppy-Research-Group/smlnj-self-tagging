@@ -23,6 +23,7 @@ structure CPS : CPS =
 
     datatype cty
       = NUMt of intty	        (* integers of the given type *)
+      | ENUMt			(* datatype-constructor tag *)
       | PTRt of pkind	        (* pointer *)
       | FUNt		        (* function? *)
       | FLTt of int 	        (* float of given size *)
@@ -117,6 +118,7 @@ structure CPS : CPS =
       = VAR of lvar
       | LABEL of lvar
       | NUM of intty IntConst.t
+      | ENUM of int
       | REAL of int RealConst.t
       | STRING of string
       | VOID

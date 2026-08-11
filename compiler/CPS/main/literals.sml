@@ -77,6 +77,7 @@ structure Literals : LITERALS =
 
     fun val2lit (CPS.VAR v) = LI_VAR v
       | val2lit (CPS.NUM{ival, ty={tag=true, ...}}) = LI_INT ival
+      | val2lit (CPS.ENUM i) = LI_INT(IntInf.fromInt i)
       | val2lit (CPS.STRING s) = LI_STRING s
       | val2lit _ = bug "unexpected case in val2lit"
 
@@ -287,7 +288,7 @@ structure Literals : LITERALS =
 	(* memoize the information on which corresponds to what *)
 	  fun enter (v, i) = (LV.Tbl.insert m (v, i); addv v)
 	  fun const (VAR v) = ((LV.Tbl.lookup m v; true) handle _ => false)
-	    | const (NUM _ | REAL _ | STRING _) = true
+	    | const (NUM _ | ENUM _ | REAL _ | STRING _) = true
 	    | const _ = bug "unexpected case in const"
 	  fun cstlit (VAR v) = ((LV.Tbl.lookup m v; true) handle _ => false)
 	    | cstlit (REAL _ | STRING _) = true
