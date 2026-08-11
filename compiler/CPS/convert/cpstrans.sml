@@ -41,6 +41,7 @@ functor CPStrans (MachSpec : MACH_SPEC) : sig
 	  val getty = LV.Tbl.lookup CT
 	  fun grabty (VAR v) = ((getty v) handle _ => CPSUtil.BOGt)
 	    | grabty (NUM{ty, ...}) = NUMt ty
+	    | grabty (ENUM _) = ENUMt
 	    | grabty (REAL{ty, ...}) = FLTt ty
 	    | grabty _ = CPSUtil.BOGt
 
