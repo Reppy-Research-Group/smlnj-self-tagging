@@ -49,12 +49,12 @@ end = struct
 
     val boxNumSz = Target.mlValueSz	(* 32 or 64 *)
 
-    val tagNumTy = C.NUMt{tag = true, sz = Target.defaultIntSz}
+    val tagNumTy = C.NUMt{tag = true, sz = Target.defaultTaggedIntSz}
     val boxNumTy = C.NUMt{tag = false, sz = boxNumSz}
 
     fun toInf (prim, sz, [x, f], v, t, e) = let
 	  val k = LV.mkLvar ()
-	  val body = if (sz <= Target.defaultIntSz)
+	  val body = if Target.isTaggedIntSz sz
 		  then let
 		  (* for tagged values, we promote to the boxed type before calling
 		   * the conversion function.
@@ -86,7 +86,7 @@ end = struct
     fun truncInf (sz, [x, f], v, t, e) = let
 	  val k = LV.mkLvar ()
 	  in
-	    if (sz <= Target.defaultIntSz)
+		    if Target.isTaggedIntSz sz
 	      then let
 		val v' = LV.mkLvar ()
 		val retContBody =
@@ -118,7 +118,7 @@ end = struct
     fun testInf (sz, [x, f], v, t, e) = let
 	  val k = LV.mkLvar ()
 	  in
-	    if (sz <= Target.defaultIntSz)
+		    if Target.isTaggedIntSz sz
 	      then let
 		val v' = LV.mkLvar ()
 	      (* NOTE: we may need to lower the TEST from boxNumSz to sz! *)

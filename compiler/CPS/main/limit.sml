@@ -101,7 +101,7 @@ structure Limit : sig
 		    | C.PURE(P.WRAP(P.INT sz), _, _, _, e) =>
 			if (sz = Target.mlValueSz)
 			  then inc (2, e)
-			else if (sz <= Target.defaultIntSz)
+			else if Target.isTaggedIntSz sz
 			  then error "unexpected tagged int wrap in Limit.count"
 			  else inc (1 + sz div Target.mlValueSz, e)
 		    | C.PURE(P.WRAP(P.FLOAT sz), _, _, _, e) => inc (record64Sz 1, e)

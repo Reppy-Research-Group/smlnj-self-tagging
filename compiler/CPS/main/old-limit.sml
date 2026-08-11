@@ -85,7 +85,7 @@ structure OldLimit : sig
 	    | g (d, PURE(P.WRAP(P.INT sz), _, _, _, e)) =
 		if (sz = Target.mlValueSz)
 		  then g(d + 2, e)
-		else if (sz <= Target.defaultIntSz)
+		else if Target.isTaggedIntSz sz
 		  then error "unexpected tagged int wrap"
 		  else g(d + 1 + sz div Target.mlValueSz, e)
 (* REAL32: FIXME *)

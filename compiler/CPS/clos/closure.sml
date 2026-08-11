@@ -51,7 +51,7 @@ local
   fun profL n = if !CGoptions.staticprof andalso (n > 0) then SProf.incln n else ()
 
 (* tagged int value *)
-fun tagInt i = NUM{ival = IntInf.fromInt i, ty = {sz = Target.defaultIntSz, tag = true}}
+fun tagInt i = NUM{ival = IntInf.fromInt i, ty = {sz = Target.defaultTaggedIntSz, tag = true}}
 
 (* there is a bug in "CLOSURE SHARING VIA THINNING" where the code is
  * sensitive to the sorting of equal items.  Specifically, the code works
@@ -2046,4 +2046,3 @@ in  (* body of closeCPS *)
 end
 end (* local of open *)
 end (* functor Closure *)
-

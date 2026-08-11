@@ -63,7 +63,7 @@ fun dec (ri as ref i) = (ri := i-1)
 
 (* integer types/values *)
 local
-  val tt = {sz = Target.defaultIntSz, tag = true}
+  val tt = {sz = Target.defaultTaggedIntSz, tag = true}
   fun bt sz = {sz = sz, tag = false}
 in
 val tagIntTy = NUMt tt

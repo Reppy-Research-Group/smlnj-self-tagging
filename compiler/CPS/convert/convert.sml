@@ -51,7 +51,7 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
 
   (* integer types/values *)
     local
-      val tt = {sz = Target.defaultIntSz, tag = true}
+      val tt = {sz = Target.defaultTaggedIntSz, tag = true}
       fun bt sz = {sz = sz, tag = false}
     in
     val tagIntTy = NUMt tt
@@ -331,11 +331,11 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
         (* lpvar : F.value -> value *)
         fun lpvar (F.VAR v) = rename v
           | lpvar (F.INT{ival, ty}) =
-              if (ty <= Target.defaultIntSz)
+              if Target.isTaggedIntSz ty
                 then tagInt ival
                 else boxInt(ty, ival)
           | lpvar (F.WORD{ival, ty}) =
-              if (ty <= Target.defaultIntSz)
+              if Target.isTaggedIntSz ty
                 then tagInt ival
                 else boxInt(ty, ival)
           | lpvar (F.ENUM i) = enumTag i

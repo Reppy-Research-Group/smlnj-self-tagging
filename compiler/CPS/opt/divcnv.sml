@@ -64,7 +64,7 @@ structure DivCnv : sig
   (* bit-width of target word (32 or 64) *)
     val ity = Target.mlValueSz
   (* bit-width of default tagged integer type *)
-    val tty = Target.defaultIntSz
+    val tty = Target.defaultTaggedIntSz
 
     val intTy = C.NUMt{sz = ity, tag=false}
     val tagTy = C.NUMt{sz = tty, tag=true}

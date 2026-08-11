@@ -225,7 +225,7 @@ functor CPStrans (MachSpec : MACH_SPEC) : sig
 		      case u of VAR z => addty(z, t) | _ => ();
 		      addvl(w,vtrans u); cexptrans ce)
 		  | PURE(p as P.WRAP(P.INT sz), [u], w, t, ce) =>
-		      if (sz <= Target.defaultIntSz)
+		      if Target.isTaggedIntSz sz
 			then (  (* remove wrapping of tagged ints *)
 			  addvl(w, vtrans u);
 			  cexptrans ce)
@@ -233,7 +233,7 @@ functor CPStrans (MachSpec : MACH_SPEC) : sig
 			  addty(w,t);
 			  PURE(p, [vtrans u], w, t, cexptrans ce))
 		  | PURE(p as P.UNWRAP(P.INT sz), [u], w, t, ce) =>
-		      if (sz <= Target.defaultIntSz)
+		      if Target.isTaggedIntSz sz
 			then (  (* remove unwrapping of tagged ints *)
 			  addvl(w,vtrans u);
 			  cexptrans ce)

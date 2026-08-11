@@ -44,7 +44,7 @@ structure TestCnv : sig
   (* bit width of target word (32 or 64) *)
     val ity = Target.mlValueSz
   (* bit width of default tagged integer size (31 or 63) *)
-    val tty = Target.defaultIntSz
+    val tty = Target.defaultTaggedIntSz
 
     val sLT = P.CMP{oper=P.LT, kind=P.INT ity}
     val uLE = P.CMP{oper=P.LTE, kind=P.UINT ity}

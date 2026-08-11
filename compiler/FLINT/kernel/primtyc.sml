@@ -170,7 +170,7 @@ structure PrimTyc :> PRIM_TYC =
    * Note that we use the default tagged integer type to represent any numeric
    * type of smaller precision.
    *)
-    fun numPrim n = PT_NUM(Int.max (n, Target.defaultIntSz))
+    fun numPrim n = PT_NUM(Int.max (n, Target.defaultTaggedIntSz))
 
   (* mapping from Types.tycon to primtycs *)
     val primTycons = [
@@ -219,12 +219,12 @@ structure PrimTyc :> PRIM_TYC =
   (** check the boxity of values of each prim tyc; returns true if the primitive
    ** type has a non-uniform unboxed representation (e.g., reals)
    *)
-    fun unboxed (PT_NUM n) = (n > Target.defaultIntSz)
+    fun unboxed (PT_NUM n) = not (Target.isTaggedIntSz n)
       | unboxed (PT_REAL _) = true
       | unboxed _ = false
 
     fun ubxupd (PT_NUM 0) = false	(* IntInf.int *)
-      | ubxupd (PT_NUM n) = (n <= Target.defaultIntSz)
+      | ubxupd (PT_NUM n) = Target.isTaggedIntSz n
       | ubxupd PT_ENUM = true
       | ubxupd PT_POINTER = true	(* okay since pointer is outside heap *)
       | ubxupd _ = false
