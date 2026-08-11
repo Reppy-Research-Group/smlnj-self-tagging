@@ -41,8 +41,8 @@ structure TaggedArith : sig
 
     fun var x = C.VAR{name=x}
 
-    (* maximum tagged signed integer *)
-    val maxInt = IntInf.<<(1, Word.fromInt Target.defaultIntSz - 0w1) - 1
+  (* maximum tagged signed integer *)
+    val maxInt = IntInf.<<(1, Word.fromInt Target.defaultTaggedIntSz - 0w1) - 1
 
   (* CFG integer constants *)
     fun num iv = C.NUM{iv = iv, sz = ity}
@@ -145,17 +145,17 @@ structure TaggedArith : sig
             | (CNTPOP, [v]) =>
                 (* untag argument and then count ones *)
                 tag(pureOp (P.CNTPOP, ity, [untagUInt (comp v)]))
-            | (CNTLZ, [v]) => if (sz < Target.defaultIntSz)
+            | (CNTLZ, [v]) => if (sz < Target.defaultTaggedIntSz)
                 (* for smaller sizes, we need to adjust the result *)
                 then tag(pureOp (P.SUB, ity, [
                     pureOp (P.CNTLZ, ity, [zExt(sz, ity, comp v)]),
-                    num(IntInf.fromInt(Target.defaultIntSz - sz))
+                    num(IntInf.fromInt(Target.defaultTaggedIntSz - sz))
                   ]))
                 (* for default ints, the tagging does not affect the
                  * leading-zero count; plus we know that the argument is not zero!
                  *)
                 else tag(pureOp (P.CNTLZ, ity, [comp v]))
-            | (CNTTZ, [v]) => if (sz < Target.defaultIntSz)
+            | (CNTTZ, [v]) => if (sz < Target.defaultTaggedIntSz)
                 (* CNTTZ(v) == CNTTZ((1 << sz) | (v >> 1)) *)
                 then tag(pureOp(P.CNTTZ, ity, [
                     pureOp(P.ORB, ity, [

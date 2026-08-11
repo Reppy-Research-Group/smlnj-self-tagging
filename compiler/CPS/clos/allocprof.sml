@@ -63,7 +63,7 @@ val PROFREG = 0  (* use pseudo register 0 *)
 
 (* integer types/values *)
 local
-  val tt = {sz = Target.defaultIntSz, tag = true}
+  val tt = {sz = Target.defaultTaggedIntSz, tag = true}
 in
 val tagIntTy = NUMt tt
 fun tagInt n = NUM{ival = IntInf.fromInt n, ty = tt}
@@ -419,4 +419,3 @@ fun reset() = (print "New  alloc profvec, size ";
 
 end (* toplevel local *)
 end (* structure AllocProf *)
-

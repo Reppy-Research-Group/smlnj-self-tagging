@@ -17,6 +17,8 @@
  *	  subtraction, negation, and the bit-wise operations.
  *)
 
+(* DEFAULT64: This entire file needs to be checked. *)
+
 structure TransPrim : sig
 
     val trans : {
@@ -95,7 +97,7 @@ structure TransPrim : sig
     (* subtraction of unsigned integers *)
     val pSUBU = pPURE(PureP.SUB, dfltWordKind, lt_arw(lt_ipair, lt_int), [])
 
-    (* promote words to the default size *)
+    (* promote words to the default tagged-integer width *)
     fun promote fromSz = let
           val argt = LB.ltc_num fromSz
           in
@@ -302,8 +304,8 @@ structure TransPrim : sig
                       pPURE(PureP.CNTPOP, PO.UINT sz, lt_arw(LB.ltc_num sz, lt_int), []),
                       w)
                 in
-                  if sz < Tgt.defaultIntSz
-                    then count (promote sz w, Tgt.defaultIntSz)
+	          if sz < Tgt.defaultIntSz
+	            then count (promote sz w, Tgt.defaultIntSz)
                     else count (w, sz)
                 end
         (* inline expand a count-leading-zeros operation *)
@@ -318,7 +320,7 @@ structure TransPrim : sig
                   w)
 	(* inline expand an arithmetic-shift-right operation; for this operation, we need
 	 * some care to get the sign bit extension correct.  If the size of the value
-	 * being shifted is less than the default integer size, then we shift it left first
+	 * being shifted is less than the default tagged-integer width, then we shift it left first
 	 * and then do an arithmetic right shift followed by a logical right shift to
 	 * produce the final result.  We use two shifts so that the resulting high bits will
 	 * be zeros.
@@ -544,7 +546,7 @@ structure TransPrim : sig
                         (* CEIL_LOG2(x) == sz - CNTLZ(x-1) *)
                         val argt = LB.ltc_num sz
                         val (argt', sz', argCopy) = if sz < Tgt.defaultIntSz
-                              (* we promote smaller integer types to the default size *)
+	                              (* we promote smaller integer types to the default integer width *)
                               then (lt_int, Tgt.defaultIntSz, promote sz)
                               else (argt, sz, Fn.id)
                         val k = PO.UINT sz'

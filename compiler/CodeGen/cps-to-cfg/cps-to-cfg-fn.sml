@@ -38,7 +38,7 @@ functor CPStoCFGFn (MS : MACH_SPEC) : sig
 
     fun error msg = ErrorMsg.impossible(String.concat("CPStoCFGFn: " :: msg))
 
-    val defaultIntSz = Target.defaultIntSz
+    val defaultTaggedIntSz = Target.defaultTaggedIntSz
 
   (* These are the bit widths of ML values *)
     val ity = MS.wordBitWidth (* size of ML's pointer/value *)
@@ -262,7 +262,7 @@ C.NUMt{sz=sz}
 		  | LOOKER(oper, vs, x, ty, k) =>
 		      genCont (genLooker (oper, vs), x, ty, k)
 		  | ARITH(P.TEST{from, to}, [v], x, ty, k) =>
-		      if (from = ity) andalso (to = defaultIntSz)
+		      if (from = ity) andalso (to = defaultTaggedIntSz)
 			then let
 			  val tmp = LV.mkLvar()
 			  fun tag v =
@@ -279,7 +279,7 @@ C.NUMt{sz=sz}
 			  end
 			else error ["unsupported sizes for TEST"]
 		  | ARITH(P.TESTU{from, to}, [v], x, ty, k) =>
-		      if (from = to) andalso ((from = ity) orelse (from = defaultIntSz))
+		      if (from = to) andalso ((from = ity) orelse (from = defaultTaggedIntSz))
 			then let
 			(* we implement the test by adding 2^(ity-1) to the value;
 			 * if the value is negative (which fails the TESTU condition),
@@ -298,7 +298,7 @@ C.NUMt{sz=sz}
 		      then let
 			fun continue (C.VAR _) = bindVarIn (x, k)
 			  | continue exp =
-			      genCont(exp, x, CPS.NUMt{sz=defaultIntSz, tag=true}, k)
+			      genCont(exp, x, CPS.NUMt{sz=defaultTaggedIntSz, tag=true}, k)
 			in
 			  genTagged (oper, vs, x, continue)
 			end
@@ -430,10 +430,10 @@ C.NUMt{sz=sz}
 			    TP.RAW_UPDATE{kind = kind, sz = sz},
 			    [getSeqData(genV arr), untagSigned ix, arg],
 			    k)
-		      fun coerceInt (sz, signed) = if (sz = defaultIntSz) orelse (sz = ity)
+		      fun coerceInt (sz, signed) = if (sz = defaultTaggedIntSz) orelse (sz = ity)
 			    (* IntArray.array will store values in tagged form *)
 			      then genV v
-			    else if (sz < defaultIntSz)
+			    else if (sz < defaultTaggedIntSz)
 			      then trunc (sz, signed, v)
 			      else error [" NUMUPDATE of unsupported size ", Int.toString sz]
 		      in
@@ -581,10 +581,10 @@ C.NUMt{sz=sz}
 		  | (P.COPY{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (from = defaultIntSz) andalso (to = ity)
+		      else if (from = defaultTaggedIntSz) andalso (to = ity)
 			then untagUnsigned v
-		      else if (from < defaultIntSz)
-			then if (to <= defaultIntSz)
+		      else if (from < defaultTaggedIntSz)
+			then if (to <= defaultTaggedIntSz)
 			  then zeroExtend(from, genV v)
 (* QUESTION: do we need to zero extend v before untagging it? *)
 			  else untagUnsigned v
@@ -592,14 +592,14 @@ C.NUMt{sz=sz}
 		  | (P.EXTEND{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (from = defaultIntSz) andalso (to = ity)
+		      else if (from = defaultTaggedIntSz) andalso (to = ity)
 		      (* shift right by one preserves sign and nukes tag bit *)
 			then pureOp (TP.ASHR, ity, [genV v, one])
-		      else if (from < defaultIntSz)
+		      else if (from < defaultTaggedIntSz)
 			then let
 (* QUESTION: do we need to zero-extend the argument to ity width? *)
 			(* shift left amount so that sign bit is leftmost bit *)
-			  val sa = IntInf.fromInt(defaultIntSz - from)
+			  val sa = IntInf.fromInt(defaultTaggedIntSz - from)
 			  val exp = pureOp (TP.SHL, ity, [genV v, num sa])
 			  in
 			    if isTaggedInt to
@@ -612,7 +612,7 @@ C.NUMt{sz=sz}
 		  | (P.TRUNC{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (to = defaultIntSz) andalso (from = ity)
+		      else if (to = defaultTaggedIntSz) andalso (from = ity)
 			then orTag(pureOp(TP.SHL, ity, [genV v, one]))
 		      else if not (isTaggedInt to)
 			then pure(TP.TRUNC{from=from, to=to}, [genV v])
@@ -700,7 +700,7 @@ C.NUMt{sz=sz}
                             (* for native numbers, one bit set ==> power of two *)
                             then branch (genV v, one)
                           (* for tagged numbers, two bits set ==> power of two *)
-                          else if (sz = defaultIntSz)
+                          else if (sz = defaultTaggedIntSz)
                             then branch (genV v, two)
                             else branch (zeroExtend(sz, genV v), two)
                         end
@@ -726,16 +726,16 @@ C.NUMt{sz=sz}
  * if we add monomorphic array types of smaller integer sizes
  *)
             | genRawIntSubscript (sz, vec, idx) =
-		if (sz < defaultIntSz)
+		if (sz < defaultTaggedIntSz)
 		  then toMLWord (signExtend (sz, genRawSubscript (TP.INT, sz, vec, idx)))
-		else if (sz = defaultIntSz)
+		else if (sz = defaultTaggedIntSz)
 		(* for default-size ints, we use the native size subscript *)
 		  then toMLWord (genRawSubscript (TP.INT, ity, vec, idx))
 		  else genRawSubscript (TP.INT, sz, vec, idx)
 	  and genRawWordSubscript (sz, vec, idx) =
-		if (sz < defaultIntSz)
+		if (sz < defaultTaggedIntSz)
 		  then toMLWord (zeroExtend (sz, genRawSubscript (TP.INT, sz, vec, idx)))
-		else if (sz = defaultIntSz)
+		else if (sz = defaultTaggedIntSz)
 		(* for default-size ints, we use the native size subscript *)
 		  then toMLWord (genRawSubscript (TP.INT, ity, vec, idx))
 		  else genRawSubscript (TP.INT, sz, vec, idx)

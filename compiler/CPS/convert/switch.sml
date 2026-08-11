@@ -53,7 +53,7 @@ structure Switch : sig
 
   (* default integer type/values *)
     local
-      val tt = {sz = Target.defaultIntSz, tag = true}
+      val tt = {sz = Target.defaultTaggedIntSz, tag = true}
     in
     val tagNumTy = CPS.NUMt tt
     fun tagNum n = CPS.NUM{ival = n, ty = tt}
@@ -61,8 +61,8 @@ structure Switch : sig
     fun tagEnum n = CPS.ENUM(toI n)
     fun boxNumTy sz = CPS.NUMt{sz = sz, tag = false}
   (* operator numkinds for default tagged ints and words *)
-    val tagIntKind = CPS.P.INT Target.defaultIntSz
-    val tagWordKind = CPS.P.UINT Target.defaultIntSz
+    val tagIntKind = CPS.P.INT Target.defaultTaggedIntSz
+    val tagWordKind = CPS.P.UINT Target.defaultTaggedIntSz
     val tagEnumKind = CPS.P.UINT Target.defaultTaggedIntSz
     end
 
@@ -343,7 +343,7 @@ structure Switch : sig
 		  | un_int _ = bug "un_int"
 		val cases = List.map un_int cases
 		in
-		  if (ty <= Target.defaultIntSz)
+		  if Target.isTaggedIntSz ty
 		    then taggedNumSwitch(arg, tagIntKind, cases, default, NONE)
 		    else boxedNumSwitch(arg, boxNumTy ty, CPS.P.INT ty, cases, default)
 		end
@@ -352,7 +352,7 @@ structure Switch : sig
 		  | un_word _ = bug "un_int"
 		val cases = List.map un_word cases
 		in
-		  if (ty <= Target.defaultIntSz)
+		  if Target.isTaggedIntSz ty
 		    then taggedNumSwitch(arg, tagWordKind, cases, default, NONE)
 		    else boxedNumSwitch(arg, boxNumTy ty, CPS.P.UINT ty, cases, default)
 		end

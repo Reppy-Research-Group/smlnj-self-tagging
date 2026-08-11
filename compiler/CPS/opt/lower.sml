@@ -51,11 +51,13 @@ structure LowerCPS : sig
     fun letPure (oper, sz, args : C.value list, k : C.value -> C.cexp) = let
           val x = LV.mkLvar()
           in
-            C.PURE(pureOp(oper, sz), args, x, C.NUMt{sz = sz, tag = (sz < ity)},
+            C.PURE(pureOp(oper, sz), args, x, C.NUMt{sz = sz, tag = Target.isTaggedIntSz sz},
               k (C.VAR x))
           end
-    fun num (i, sz) = C.NUM{ival = IntInf.fromInt i, ty = {sz = sz, tag = (sz < ity)} }
-    fun num' (w, sz) = C.NUM{ival = Word.toLargeInt w, ty = {sz = sz, tag = (sz < ity)} }
+    fun num (i, sz) =
+          C.NUM{ival = IntInf.fromInt i, ty = {sz = sz, tag = Target.isTaggedIntSz sz}}
+    fun num' (w, sz) =
+          C.NUM{ival = Word.toLargeInt w, ty = {sz = sz, tag = Target.isTaggedIntSz sz}}
 
     fun transform cfun = let
 	  fun function (fk, f, formals, tl, e) = let
@@ -87,7 +89,7 @@ structure LowerCPS : sig
 		  | cexp (C.PURE(P.TRUNC_INF sz, args, v, t, e)) =
 		      IntInfCnv.truncInf (sz, args, v, t, cexp e)
 		  | cexp (C.PURE(p as P.PURE_ARITH{oper=P.ROTL, kind=P.UINT sz}, [v1, v2], x, t, e)) =
-                      if (sz < ity)
+                      if Target.isTaggedIntSz sz
                         then let
                           (* for rotations of tagged types, we expand to
                            *    `(v1 >> k) | ((v1 & m) << n)`
@@ -122,7 +124,7 @@ structure LowerCPS : sig
                         (* rotations of native words are handled by hardware *)
                         else C.PURE(p, [v1, v2], x, t, cexp e)
 		  | cexp (C.PURE(p as P.PURE_ARITH{oper=P.ROTR, kind=P.UINT sz}, [v1, v2], x, t, e)) =
-                      if (sz < ity)
+                      if Target.isTaggedIntSz sz
                         then let
                           (* for rotations of tagged types, we expand to
                            *    `(v1 >> n) | ((v1 & m) << k)`

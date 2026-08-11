@@ -22,6 +22,9 @@ signature TARGET =
   (* the size of tagged immediate integer values *)
     val defaultTaggedIntSz : int
 
+  (* true when integers of the given size use the tagged immediate representation *)
+    val isTaggedIntSz : int -> bool
+
   (* the size of the FixedInt.int type *)
     val fixedIntSz : int
 

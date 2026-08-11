@@ -94,7 +94,7 @@ structure ContractPrim : sig
 
     (* integer types/values *)
     local
-      val tt = {sz = Target.defaultIntSz, tag = true}
+      val tt = {sz = Target.defaultTaggedIntSz, tag = true}
     in
     fun tagInt' n = NUM{ival = n, ty = tt}
     fun tagInt n = tagInt'(IntInf.fromInt n)
@@ -107,8 +107,8 @@ structure ContractPrim : sig
 
     fun mkNum (sz, ival) = let
         (* NOTE: currently all tagged integer constants have the default size *)
-          val ty = if (sz <= Target.defaultIntSz)
-                then {sz=Target.defaultIntSz, tag=true}
+          val ty = if Target.isTaggedIntSz sz
+                then {sz=Target.defaultTaggedIntSz, tag=true}
                 else {sz=sz, tag=false}
           in
             NUM{ival=ival, ty=ty}

@@ -201,7 +201,7 @@ functor SpillFn (MachSpec : MACH_SPEC) : SPILL =
     (* tagged integers *)
     fun tagInt n = CPS.NUM{
             ival = IntInf.fromInt n,
-            ty = {tag = true, sz = Target.defaultIntSz}
+            ty = {tag = true, sz = Target.defaultTaggedIntSz}
           }
 
   (*-------------------------------------------------------------------------
@@ -248,7 +248,7 @@ functor SpillFn (MachSpec : MACH_SPEC) : SPILL =
 
       fun markPure (p, w) = (case p
             (* these pure operators actually allocate storage! *)
-	     of P.WRAP(P.INT sz) => if (sz <= Target.defaultIntSz) then () else markrec(w, 0)
+	     of P.WRAP(P.INT sz) => if Target.isTaggedIntSz sz then () else markrec(w, 0)
 	      | (P.WRAP(P.FLOAT _) | P.NEWARRAY0 | P.MAKEREF | P.MKSPECIAL | P.RAWRECORD _) =>
 		  markrec(w, 0)
               | _ => ()

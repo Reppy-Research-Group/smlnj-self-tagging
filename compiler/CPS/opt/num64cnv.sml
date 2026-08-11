@@ -528,7 +528,7 @@ structure Num64Cnv : sig
 
   (* signed conversion from 64-bit word with test for overflow *)
     fun test64To (toSz, [x, f], res, resTy, ce) =
-	  if (toSz <= Target.defaultIntSz)
+	  if Target.isTaggedIntSz toSz
 	    then let (* need extra conversion from 32-bits to fromSz *)
 	      val rk = LV.mkLvar()
 	      val v = LV.mkLvar()
@@ -541,7 +541,7 @@ structure Num64Cnv : sig
 
   (* unsigned conversion from 64-bit word with test for overflow *)
     fun testu64To (toSz, [x, f], res, resTy, ce) =
-	  if (toSz <= Target.defaultIntSz)
+	  if Target.isTaggedIntSz toSz
 	    then let (* need extra conversion from 32-bits to fromSz *)
 	      val rk = LV.mkLvar()
 	      val v = LV.mkLvar()

@@ -13,6 +13,7 @@ structure Target : TARGET =
     val mlValueSz = 32
     val defaultIntSz = 31
     val defaultTaggedIntSz = 31
+    fun isTaggedIntSz sz = (sz < mlValueSz)
     val fixedIntSz = 32
     val defaultRealSz = 64
     val is64 = false
