@@ -51,9 +51,9 @@ cloc.json: $(wildcard $(BENCHMARKS)/*.sml)
 	mv $(BENCHMARKS)/cloc.json .
 
 .PHONY: llvm
-llvm: $(RUNTIME)/bin/.stamp $(RUNTIME)/include/.stamp $(RUNTIME)/lib/.stamp
+llvm: $(TOP)/bin/.stamp $(TOP)/include/.stamp $(TOP)/lib/.stamp
 
-%/bin/sml: %/runtime/bin/.stamp %/runtime/include/.stamp %/runtime/lib/.stamp
+%/bin/sml: %/bin/.stamp %/include/.stamp %/lib/.stamp
 	# get the bootstrapping compiler (compiler0), build environment with
 	# compiler0, and use compiler0 to compile the compiler (compiler1)
 	cd $* && \
@@ -69,19 +69,19 @@ llvm: $(RUNTIME)/bin/.stamp $(RUNTIME)/include/.stamp $(RUNTIME)/lib/.stamp
 	# rebuild the environment with compiler3
 	cd $* && ./build.sh
 
-%/runtime/bin/.stamp: $(LLVMDIR)/bin/.stamp
+%/bin/.stamp: $(LLVMDIR)/bin/.stamp
 	mkdir -p "$(@D)"
 	cp -r $(LLVMDIR)/bin/* "$(@D)"
 
-%/runtime/include/.stamp: $(LLVMDIR)/include/.stamp
+%/include/.stamp: $(LLVMDIR)/include/.stamp
 	mkdir -p "$(@D)"
 	cp -r $(LLVMDIR)/include/* "$(@D)"
 
-%/runtime/lib/.stamp: $(LLVMDIR)/lib/.stamp
+%/lib/.stamp: $(LLVMDIR)/lib/.stamp
 	mkdir -p "$(@D)"
 	cp -r $(LLVMDIR)/lib/* "$(@D)"
 
 $(LLVMDIR)/lib/.stamp $(LLVMDIR)/bin/.stamp $(LLVMDIR)/include/.stamp:
-	cd $(LLVMDIR) && ./build-llvm.sh
+	# cd $(LLVMDIR) && ./build-llvm.sh
 	touch $(LLVMDIR)/lib/.stamp $(LLVMDIR)/bin/.stamp $(LLVMDIR)/include/.stamp
 
