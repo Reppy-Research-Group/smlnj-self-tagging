@@ -50,7 +50,7 @@ structure TestCnv : sig
     val uLE = P.CMP{oper=P.LTE, kind=P.UINT ity}
     fun branch (cmp, args, k1, k2) = C.BRANCH(cmp, args, LV.mkLvar(), k1, k2)
 
-    val mlUnit = C.NUM{ival=0, ty={sz=tty, tag=true}}
+    val mlUnit = C.ENUM 0
 
     fun mkTrap k = let
 	  val tmp = LV.mkLvar()
@@ -67,7 +67,7 @@ structure TestCnv : sig
 	    then C.PURE(P.COPY{from=from, to=to}, [v], x, ty, k)
 	  else if (from <= ity) andalso (to < tty)
 	    then let
-	      val fromIsTagged = (from < ity)
+	      val fromIsTagged = Target.isTaggedIntSz from
 	      fun num iv = C.NUM{ival=iv, ty={sz=from, tag=fromIsTagged}}
 	      val maxToInt = IntInf.<<(1, Word.fromInt(to - 1)) - 1
 	      val minToInt = ~(maxToInt + 1)
@@ -98,7 +98,7 @@ structure TestCnv : sig
 	  if (from = to) andalso ((from = ity) orelse (from = tty))
 	    then C.ARITH(P.TESTU{from=from, to=to}, [v], x, ty, k)
 	    else let
-	      val fromIsTagged = (from < ity)
+	      val fromIsTagged = Target.isTaggedIntSz from
 	      fun num iv = C.NUM{ival=iv, ty={sz=from, tag=fromIsTagged}}
 	      val maxToInt = IntInf.<<(1, Word.fromInt(to - 1)) - 1
 	      val jk = LV.mkLvar()
