@@ -49,7 +49,6 @@ end = struct
 
     val boxNumSz = Target.mlValueSz	(* 32 or 64 *)
 
-    val tagNumTy = C.NUMt{tag = true, sz = Target.defaultTaggedIntSz}
     val boxNumTy = C.NUMt{tag = false, sz = boxNumSz}
 
     fun toInf (prim, sz, [x, f], v, t, e) = let
