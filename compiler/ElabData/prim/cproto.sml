@@ -116,9 +116,10 @@ structure CProto : sig
 
     fun decode defaultconv { encoding = t, fun_ty } = let
 	(* The type-mapping table: *)
+        (* DEFAULT64: Does C code expect Int63 or Int64? *)
 	val m =
-	    [(BT.intTy,           CT.C_signed   CT.I_int,       CP.CCI32),
-	     (BT.wordTy,          CT.C_unsigned CT.I_int,       CP.CCI32),
+	    [(BT.int63Ty,         CT.C_signed   CT.I_int,       CP.CCI32),
+	     (BT.word63Ty,        CT.C_unsigned CT.I_int,       CP.CCI32),
 	     (BT.stringTy,        CT.C_PTR,                     CP.CCI32),
 	     (BT.boolTy,          CT.C_PTR,                     CP.CCML),
 	     (BT.realTy,          CT.C_double,                  CP.CCR64),
@@ -174,8 +175,8 @@ structure CProto : sig
 
 	fun getConv t =
 	    if TU.equalType (t, BT.unitTy) then SOME defaultconv
-	    else if TU.equalType (t, BT.wordTy) then SOME "ccall"
-	    else if TU.equalType (t, BT.intTy) then SOME "stdcall"
+	    else if TU.equalType (t, BT.word63Ty) then SOME "ccall"
+	    else if TU.equalType (t, BT.int63Ty) then SOME "stdcall"
 	    else NONE
         in
           (* Get argument types and result type; decode them.

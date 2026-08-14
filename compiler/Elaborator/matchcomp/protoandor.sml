@@ -1,7 +1,7 @@
 (* FLINT/trans/protoandor.sml *)
 (* revised "old" match compiler *)
 
-(* build a simple "proto"-AndOr tree (type protoAndor), by layering the pattern info for 
+(* build a simple "proto"-AndOr tree (type protoAndor), by layering the pattern info for
  * each of a sequence of patterns (match left-hand-sides) to build up protoAndor nodes. *)
 
 structure ProtoAndor =
@@ -15,7 +15,7 @@ local
   structure TU = TypesUtil
   structure BT = BasicTypes
   structure P = Paths
-  structure MC = MCCommon	     
+  structure MC = MCCommon
   structure PP = PrettyPrint
 
   open Absyn Paths MCCommon
@@ -38,18 +38,22 @@ in
 fun numToCon (v, ty) =
     let fun mkWORD sz = WORDcon{ival = v, ty = sz}
 	fun mkINT sz = INTcon{ival = v, ty = sz}
-     in if TU.equalType(ty, BT.intTy)
-	  then mkINT Target.defaultIntSz
+     in if TU.equalType(ty, BT.int31Ty)
+	  then mkINT 31
 	else if TU.equalType(ty, BT.int32Ty)
 	  then mkINT 32
+	else if TU.equalType(ty, BT.int63Ty)
+	  then mkINT 63
 	else if TU.equalType(ty, BT.int64Ty)
 	  then mkINT 64
 	else if TU.equalType(ty, BT.intinfTy)
 	  then mkINT 0
-	else if TU.equalType(ty, BT.wordTy)
-	  then mkWORD Target.defaultIntSz
+	else if TU.equalType(ty, BT.word31Ty)
+	  then mkWORD 31
 	else if TU.equalType(ty, BT.word8Ty)
-	  then mkWORD Target.defaultIntSz
+	  then mkWORD 63
+	else if TU.equalType(ty, BT.word63Ty)
+	  then mkWORD 63
 	else if TU.equalType(ty, BT.word32Ty)
 	  then mkWORD 32
         else if TU.equalType(ty, BT.word64Ty)
@@ -59,7 +63,8 @@ fun numToCon (v, ty) =
 
 (* intCon : int -> con
  *  default integer pattern constant *)
-fun intCon n = INTcon {ival = IntInf.fromInt n, ty = Target.defaultIntSz}
+fun intCon n = INTcon {ival = IntInf.fromInt n, ty = Target.defaultTaggedIntSz}
+  (* DEFAULT64: QUESTION: are chars tagged? Assume yes for now. *)
 
 (* charCon : char -> con
  *  pattern constant for character literal; "promoting" char to int *)
@@ -95,7 +100,7 @@ let (* genAndor : pat * ruleno -> andor *)
       | genAndor (STRINGpat s, rule) =
 	  ORp {varRules = RS.empty, sign = DA.CNIL, cases = [(STRINGcon s, RS.singleton rule, CONST)]}
       | genAndor (CHARpat s, rule) =
-	  (* NOTE: this rule won't work for cross compiling to multi-byte characters. *) 
+	  (* NOTE: this rule won't work for cross compiling to multi-byte characters. *)
 	  ORp{varRules = RS.empty, sign = DA.CNIL, cases = [(charCon s, RS.singleton rule, CONST)]}
       | genAndor (RECORDpat{fields,...}, rule) =
 	  ANDp{varRules = RS.empty, children=multiGen(map #2 fields, rule)}
@@ -137,7 +142,7 @@ let (* genAndor : pat * ruleno -> andor *)
 		  ORp {varRules=varRules, sign=sign, cases=cases}
 	      | ANDp{children, ...} =>  (* assume varRules empty *)
 		  ANDp {varRules=varRules, children=children}
-	      | VARp {varRules=newVarRules} => 
+	      | VARp {varRules=newVarRules} =>
 		  VARp {varRules = RS.union (newVarRules, varRules)}
 	      | WCp => andor)
       | mergeAndor (NUMpat(_, {ival, ty}), c as ORp{varRules, cases, sign}, rule) =
@@ -172,7 +177,7 @@ let (* genAndor : pat * ruleno -> andor *)
     (* addACase : con * pat list * ruleno * protoVariant list -> protoVariant list *)
     (* if con is constant, pats is nil;
      * if con is a normal nonconstant datacon, pats must be a singleton list;
-     * if con is VLENcon(k,_), pats has length = k (the vector length) *)  
+     * if con is VLENcon(k,_), pats has length = k (the vector length) *)
     and addACase (con, pats, rule, nil) =  (* a new con has been discovered *)
 	  let val subcase =
 		  case (con, pats)

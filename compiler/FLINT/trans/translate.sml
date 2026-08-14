@@ -140,19 +140,22 @@ fun mkTyargs (fromBtvs, toBtvs, default, maker) =
 fun transNum ({ival, ty}: T.ty IntConst.t) : con =
     let fun mkWORD sz = WORDcon{ival = ival, ty = sz}  (* FLINT-style literal *)
 	fun mkINT sz  = INTcon{ival = ival, ty = sz}   (* FLINT-style literal *)
-	val defaultIntSz = (* 63 *) Target.defaultIntSz
-     in if TU.equalType(ty, BT.intTy)
-	  then mkINT defaultIntSz
+     in if TU.equalType(ty, BT.int31Ty)
+	  then mkINT 31
 	else if TU.equalType(ty, BT.int32Ty)
 	  then mkINT 32
+	else if TU.equalType(ty, BT.int63Ty)
+	  then mkINT 63
 	else if TU.equalType(ty, BT.int64Ty)
 	  then mkINT 64
 	else if TU.equalType(ty, BT.intinfTy)
 	  then mkINT 0
-	else if TU.equalType(ty, BT.wordTy)
-	  then mkWORD defaultIntSz
+	else if TU.equalType(ty, BT.word31Ty)
+	  then mkWORD 31
 	else if TU.equalType(ty, BT.word8Ty)
-	  then mkWORD defaultIntSz  (* or:  mkWORD 8 (if we want accurate char size) *)
+	  then mkWORD 63  (* DEFAULT64: or:  mkWORD 8 (if we want accurate char size) or: mkWORD 64 *)
+	else if TU.equalType(ty, BT.word63Ty)
+	  then mkWORD 63
 	else if TU.equalType(ty, BT.word32Ty)
 	  then mkWORD 32
         else if TU.equalType(ty, BT.word64Ty)
@@ -599,7 +602,7 @@ fun genintinfswitch (subject: lexp, cases, default) =
 	      COND (APP (#getIntInfEq eqDict (), RECORD [VAR sv, VAR (getII n)]),
 		    e, build r)
 	(* make a small int constant pattern *)
-	fun mkSmall n = INTcon{ival = IntInf.fromInt n, ty = Tgt.defaultIntSz}
+	fun mkSmall n = INTcon{ival = IntInf.fromInt n, ty = Tgt.defaultTaggedIntSz}
 	(* split pattern values into small values and large values;
 	 * small values can be handled directly using SWITCH *)
 	fun split ([], s, l) = (rev s, rev l)
@@ -1332,15 +1335,17 @@ and mkExp (exp, d) =
 	   end
         | mkExp0 (NUMexp(src, {ival, ty})) = (
 	    dbsaynl ">>> mkExp[NUMexp]";
-	    if TU.equalType (ty, BT.intTy) then INT{ival = ival, ty = Tgt.defaultIntSz}
+	    if TU.equalType (ty, BT.int64Ty) then INT{ival = ival, ty = 64}
+	    else if TU.equalType (ty, BT.int63Ty) then INT{ival = ival, ty = 63}
 	    else if TU.equalType (ty, BT.int32Ty) then INT{ival = ival, ty = 32}
-	    else if TU.equalType (ty, BT.int64Ty) then INT{ival = ival, ty = 64}
+            else if TU.equalType (ty, BT.int31Ty) then INT{ival = ival, ty = 31}
 	    else if TU.equalType (ty, BT.intinfTy) then VAR (getII ival)
-	    else if TU.equalType (ty, BT.wordTy) then WORD{ival = ival, ty = Tgt.defaultIntSz}
-	  (* NOTE: 8-bit word is promoted to default tagged word representation *)
-	    else if TU.equalType (ty, BT.word8Ty) then WORD{ival = ival, ty = Tgt.defaultIntSz}
-	    else if TU.equalType (ty, BT.word32Ty) then WORD{ival = ival, ty = 32}
 	    else if TU.equalType (ty, BT.word64Ty) then WORD{ival = ival, ty = 64}
+	    else if TU.equalType (ty, BT.word63Ty) then WORD{ival = ival, ty = 63}
+	    else if TU.equalType (ty, BT.word32Ty) then WORD{ival = ival, ty = 32}
+	    else if TU.equalType (ty, BT.word31Ty) then WORD{ival = ival, ty = 31}
+	  (* NOTE: 8-bit word is promoted to default tagged word representation *)
+	    else if TU.equalType (ty, BT.word8Ty) then WORD{ival = ival, ty = 63}
 	    else (ppType "### NUMexp: " ty; bug "translate NUMexp"))
 (* REAL32: handle 32-bit reals *)
         | mkExp0 (REALexp(_, {rval, ty})) = REAL{rval = rval, ty = Tgt.defaultRealSz}
@@ -1348,7 +1353,7 @@ and mkExp (exp, d) =
 (* QUESTION: do we want to map characters to word8? *)
 (** NOTE: the following won't work for cross compiling to multi-byte characters **)
         | mkExp0 (CHARexp c) = INT{ival = IntInf.fromInt (Char.ord c),
-				   ty = Tgt.defaultIntSz}
+				   ty = Tgt.defaultTaggedIntSz} (* DEFAULT64: tagged? *)
         | mkExp0 (RECORDexp []) = unitLexp
         | mkExp0 (RECORDexp xs) =
             if sorted xs then RECORD (map (fn (_,e) => mkExp0 e) xs)
@@ -1555,13 +1560,13 @@ and transIntInf d s =
      * no indication within the program that we are really
      * dealing with a constant value that -- in principle --
      * could be subject to such things as constant folding. *)
-    let val consexp = CONexp (BT.consDcon, [ref (T.INSTANTIATED BT.wordTy)])
-	fun build [] = CONexp (BT.nilDcon, [ref (T.INSTANTIATED BT.wordTy)])
+    let val consexp = CONexp (BT.consDcon, [ref (T.INSTANTIATED BT.word63Ty)])
+	fun build [] = CONexp (BT.nilDcon, [ref (T.INSTANTIATED BT.word63Ty)])
 	  | build (d :: ds) = let
 	      val i = Word.toIntX d
 	      in
 		APPexp (consexp, EU.TUPLEexp [
-		    NUMexp("<lit>", {ival = IntInf.fromInt i, ty = BT.wordTy}),
+		    NUMexp("<lit>", {ival = IntInf.fromInt i, ty = BT.word63Ty}),
 		    build ds
 		  ])
 	      end
@@ -1572,7 +1577,7 @@ and transIntInf d s =
 	fun small w =
 	      APP (mkSmallFn s,
 		mkExp (
-		  NUMexp("<lit>", {ival = IntInf.fromInt (Word.toIntX w), ty = BT.wordTy}),
+		  NUMexp("<lit>", {ival = IntInf.fromInt (Word.toIntX w), ty = BT.word63Ty}),
 		  d))
      in case LN.repDigits s
           of [] => small 0w0

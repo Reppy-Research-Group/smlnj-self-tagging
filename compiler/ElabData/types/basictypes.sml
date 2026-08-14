@@ -116,15 +116,25 @@ structure BasicTypes : BASICTYPES =
    * function in ElabData/types/typeutil.sml
    *)
 
-    val (intTycon, intTy) = mkPrimTycTy ("int", 0, T.YES)	(* tagged; 31 or 63 bits *)
+    val (int31Tycon, int31Ty) = mkPrimTycTy ("int31", 0, T.YES)
     val (int32Tycon, int32Ty) = mkPrimTycTy ("int32", 0, T.YES)
+    val (int63Tycon, int63Ty) = mkPrimTycTy ("int63", 0, T.YES)
     val (int64Tycon, int64Ty) = mkPrimTycTy ("int64", 0, T.YES)
     val (intinfTycon, intinfTy) = mkPrimTycTy ("intinf", 0, T.YES)
 
-    val (wordTycon, wordTy) = mkPrimTycTy("word", 0, T.YES)	(* tagged; 31 or 63 bits *)
+    val (word31Tycon, word31Ty) = mkPrimTycTy("word31", 0, T.YES)
+    val (word63Tycon, word63Ty) = mkPrimTycTy("word63", 0, T.YES)
     val (word8Tycon, word8Ty) = mkPrimTycTy("word8", 0, T.YES)
     val (word32Tycon, word32Ty) = mkPrimTycTy("word32", 0, T.YES)
     val (word64Tycon, word64Ty) = mkPrimTycTy("word64", 0, T.YES)
+
+    val (defaultIntTycon, defaultIntTy, defaultWordTycon, defaultWordTy) =
+      case Target.defaultIntSz
+        of 64 => (int64Tycon, int64Ty, word64Tycon, word64Ty)
+         | 63 => (int63Tycon, int63Ty, word63Tycon, word63Ty)
+         | 32 => (int32Tycon, int32Ty, word32Tycon, word32Ty)
+         | 31 => (int31Tycon, int31Ty, word31Tycon, word31Ty)
+         | _ => bug "recognized default integer size"
 
     val (realTycon, realTy) = mkPrimTycTy ("real", 0, T.NO)
 

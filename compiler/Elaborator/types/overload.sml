@@ -76,9 +76,8 @@ structure Overload : OVERLOAD =
         (* resolve variable and literal overloadings *)
 	fun resolve env =
 	    (* this function implements defaulting behavior -- if the context type
-	     * is uninstantiated, and all variants match, the first one variant
-	     * is used as the default (at the moment, this is always the intTy variant,
-	     * until more overloaded ops (for reals, chars, or strings) are added).
+	     * is uninstantiated, and all variants match, we use resolveVar to
+             * determine which variant is used as the default.
 	     * For defaulting to work correctly when matching different OVLD tyvars,
 	     * it is assumed that the ordering of options is consistent (e.g., between
 	     * operators like +, -, and * ). These orderings are established by the
@@ -87,14 +86,16 @@ structure Overload : OVERLOAD =
 	    let fun resolveOVLDvar(varref as ref(V.OVLDvar{name,variants}), context, err) =
 		    let val contextTy = TU.headReduceType(Ty.VARty context)
 			val defaultTy = OLV.defaultTy name
-			val (defaultVar :: _) = variants
 			val _ = debugPPType
 			      (concat[">>resolveOVLDvar ", Symbol.name name, ", contextTy:"],
 			       contextTy)
 		    in case contextTy
 			of Ty.VARty(tyvar as ref(Ty.OVLDV _)) =>
-			   (varref := defaultVar;
-			    tyvar := Ty.INSTANTIATED defaultTy)
+			   (case OLV.resolveVar(name, defaultTy, variants)
+			     of SOME var => (
+				  varref := var;
+				  tyvar := Ty.INSTANTIATED defaultTy)
+			      | NONE => bug "resolveOVLDvar default")
 			 | _ =>
 			   (case OverloadVar.resolveVar(name,contextTy,variants)
 			     of SOME var => varref := var
@@ -114,9 +115,9 @@ structure Overload : OVERLOAD =
 	        fun resolveOVLDlit (value, _, Ty.VARty tyvar, _) =
 		    (case !tyvar
 		      of Ty.OVLDI _ =>
-			 (tyvar := Ty.INSTANTIATED BT.intTy)  (* default *)
+			 (tyvar := Ty.INSTANTIATED BT.defaultIntTy)   (* default *)
 		       | Ty.OVLDW _ =>
-			 (tyvar := Ty.INSTANTIATED BT.wordTy) (* default *)
+			 (tyvar := Ty.INSTANTIATED BT.defaultWordTy)  (* default *)
 		       | Ty.INSTANTIATED ty => ()
 		       | _ => bug "resolveOVLDlit")
 

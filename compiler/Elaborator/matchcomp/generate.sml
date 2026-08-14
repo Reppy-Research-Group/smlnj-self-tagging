@@ -81,6 +81,7 @@ local
 
   (* intCon : int -> AS.con *)
   fun intCon n = AS.INTcon {ival = IntInf.fromInt n, ty = Target.defaultIntSz}
+    (* DEFAULT64: Vector length is assumed to be encoded as default integer. *)
 
 in
 

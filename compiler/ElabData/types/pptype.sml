@@ -237,6 +237,10 @@ fun ppTycon1 env ppstrm membersOp =
 		    ppEqProp ppstrm (!eq);
 		    PP.string ppstrm "]";
 		  closeBox())
+	    else if TU.equalTycon(tyc, BT.defaultIntTycon)
+	      then pps "int"
+	    else if TU.equalTycon(tyc, BT.defaultWordTycon)
+	      then pps "word"
 	    else pps(effectivePath(path,tyc,env))
 	  | ppTyc(tyc as DEFtyc{path,strict,tyfun=TYFUN{body,...},...}) =
 	     if !internals

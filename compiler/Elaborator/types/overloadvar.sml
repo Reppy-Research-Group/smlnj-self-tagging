@@ -90,18 +90,26 @@ fun symToClass (s: S.symbol) : OLC.class =
       | NONE => bug "symToClass"
 
 fun defaultTy (s: S.symbol) : T.ty =
-    case symToClass s
-     of ty :: _ => ty
-      | nil => bug "defaultTy"
+    let fun choose class =
+	    if OLC.inClass(BT.defaultIntTy, class) then BT.defaultIntTy
+	    else if OLC.inClass(BT.defaultWordTy, class) then BT.defaultWordTy
+	    else (* For other classes, the first variant is presumed to be the
+                  * default. *)
+                (case class
+		   of ty :: _ => ty
+		    | nil => bug "defaultTy")
+    in choose (symToClass s)
+    end
 
 fun resolveVar (name: S.symbol, indicator: T.ty, variants) : V.var option =
     let fun getVariant (indicator: T.ty, class, variants) : V.var option =
-            (* ASSERT: length class = length variants *)
+            (* ASSERT: length class = length variants, also, the class and
+             * variants are declared in the same order. *)
 	    let fun get (ty1::restTy, v1::restVariants) =
 		    if TU.equalType(indicator, ty1) then SOME v1
 		    else get(restTy,restVariants)
 		  | get (nil,nil) = NONE
-		  | get _ = bug "getVariant"
+		  | get _ = bug "getVariant: length class <> length variants"
 	    in get (class, variants)
 	    end
     in getVariant (indicator, symToClass name, variants)

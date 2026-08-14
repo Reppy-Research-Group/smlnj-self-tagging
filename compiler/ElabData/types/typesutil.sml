@@ -1134,13 +1134,15 @@ structure TypesUtil : TYPESUTIL =
 	  fun word w = {wid = w, signed = false}
 	  val ty = prune ty
 	  in
-	    if equalType(ty, BT.intTy) then int Target.defaultIntSz
-	    else if equalType(ty, BT.wordTy) then word Target.defaultIntSz
+	    if equalType(ty, BT.int31Ty) then int 31
+	    else if equalType(ty, BT.word31Ty) then word 31
 	    else if equalType(ty, BT.intinfTy) then int 0
 	    else if equalType(ty, BT.int32Ty) then int 32
+	    else if equalType(ty, BT.int63Ty) then int 63
 	    else if equalType(ty, BT.int64Ty) then int 64
 	    else if equalType(ty, BT.word8Ty) then word 8
 	    else if equalType(ty, BT.word32Ty) then word 32
+	    else if equalType(ty, BT.word63Ty) then word 63
 	    else if equalType(ty, BT.word64Ty) then word 64
 	    else ErrorMsg.impossible(concat[
 		"TypeUtil.numInfo(", tyToString ty, ")"

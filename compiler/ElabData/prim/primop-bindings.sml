@@ -47,8 +47,9 @@ structure PrimopBindings : sig
    * type variables are used in the TransPrim structure to specialize the
    * functions.
    *)
-    val numSubTy = p2(ar(tup[tv1, BT.intTy], tv2))
-    val numUpdTy = p2(ar(tup[tv1, BT.intTy, tv2], BT.unitTy))
+  (* DEFAULT64: lengths and indices are assumed to be the default integer. *)
+    val numSubTy = p2(ar(tup[tv1, BT.defaultIntTy], tv2))
+    val numUpdTy = p2(ar(tup[tv1, BT.defaultIntTy, tv2], BT.unitTy))
 
   (* address-sized word type *)
     val addrTy = if Target.is64 then BT.word64Ty else BT.word32Ty
@@ -62,8 +63,7 @@ structure PrimopBindings : sig
       | wTy 64 = BT.word64Ty
       | wTy _ = raise Fail "expected 32 or 64"
 
-  (* default sizes *)
-    val intSz = Target.defaultIntSz
+  (* size of the tagged Int.int/Word.word primitive families *)
     val realSz = Target.defaultRealSz
 
   (* construct the list left-to-right to reduce free-variable pressure *)
@@ -72,8 +72,8 @@ structure PrimopBindings : sig
 
   (* operations on monomorphic word/array representations *)
     fun defineMonoSeqOps (tyName, elemTy, elemK, vecTy, arrTy, sz, prims) = let
-	  fun subTy seqTy = ar(tup[seqTy, BT.intTy], elemTy)
-	  fun updTy seqTy = ar(tup[seqTy, BT.intTy, elemTy], BT.unitTy)
+	  fun subTy seqTy = ar(tup[seqTy, BT.defaultIntTy], elemTy)
+	  fun updTy seqTy = ar(tup[seqTy, BT.defaultIntTy, elemTy], BT.unitTy)
 	  fun mkv (name, ty, p) = (concat[tyName, "_vec_", name], ty, p)
 	  fun mka (name, ty, p) = (concat[tyName, "_arr_", name], ty, p)
 	  in
@@ -124,10 +124,10 @@ structure PrimopBindings : sig
           val prefix = concat["word", Int.toString sz, "_"]
 	  val nk = P.UINT sz
 	  val w_w = ar(wty, wty)
-	  val w_i = ar(wty, BT.intTy)
+	  val w_i = ar(wty, BT.defaultIntTy)
 	  val w_b = ar(wty, BT.boolTy)
 	  val ww_w = ar(tup[wty, wty], wty)
-	  val shftTy = ar(tup[wty, BT.wordTy], wty)
+	  val shftTy = ar(tup[wty, BT.defaultWordTy], wty)
 	  val ww_b = ar(tup[wty, wty], BT.boolTy)
 	  fun mk (name, ty, p) = (prefix ^ name, ty, p)
 	  fun mk_ww_w (name, p) = mk(name, ww_w, p)
@@ -163,7 +163,7 @@ structure PrimopBindings : sig
 	    mk("cnt_trailing_ones", w_i, P.INLINE(InlP.CNTTO sz)) :-:
 	    mk("cnt_trailing_zeros", w_i, P.INLINE(InlP.CNTLZ sz)) :-:
             mk("is_pow2", w_b, P.PRIM(CP.IS_POW2 sz)) :-:
-            mk("ceil_log2", ar(wty, BT.wordTy), P.INLINE(InlP.CEIL_LOG2 sz)) :-:
+            mk("ceil_log2", ar(wty, BT.defaultWordTy), P.INLINE(InlP.CEIL_LOG2 sz)) :-:
 	    shift("rotl", P.PURE{oper=PureP.ROTL, kind=nk}) :-:
 	    shift("rotr", P.PURE{oper=PureP.ROTR, kind=nk}) :-:
 	    cmp("lt", CmpP.LT) :-:
@@ -244,14 +244,14 @@ structure PrimopBindings : sig
 	  fun wTo ty = ar(wTy, ty)
 	  fun iFrom ty = ar(ty, iTy)
 	  fun wFrom ty = ar(ty, wTy)
-	(* add conversions to/from default types when sz <> default size *)
-	  val prims = if (sz = intSz)
+	(* add conversions to/from tagged Int.int/Word.word when sz <> 63 *)
+	  val prims = if (sz = 63)
 		then prims
 		else prims :-:
-                  (iName ^ "_to_int63", iTo BT.intTy, sCopyChk(sz, intSz)) :-:
-		  (wName ^ "_to_word63", wTo BT.wordTy, uCopy(sz, intSz)) :-:
-		  ("int63_to_" ^ iName, iFrom BT.intTy, sCopyChk(intSz, sz)) :-:
-		  ("word63_to_" ^ wName, wFrom BT.wordTy, uCopy(intSz, sz))
+                  (iName ^ "_to_int63", iTo BT.int63Ty, sCopyChk(sz, 63)) :-:
+		  (wName ^ "_to_word63", wTo BT.word63Ty, uCopy(sz, 63)) :-:
+		  ("int63_to_" ^ iName, iFrom BT.int63Ty, sCopyChk(63, sz)) :-:
+		  ("word63_to_" ^ wName, wFrom BT.word63Ty, uCopy(63, sz))
 	(* add conversions to/from large word type when sz <> large word size *)
 	  val prims = if (sz = largeWSz)
 		then prims
@@ -265,9 +265,9 @@ structure PrimopBindings : sig
 	    (iName ^  "_to_intinf", iTo BT.intinfTy, P.PRIM(CP.EXTEND_INF sz)) :-:
 	    ("intinf_to_" ^ iName, iFrom BT.intinfTy, P.PRIM(CP.TEST_INF sz)) :-:
 	  (* word type to/from default int type *)
-	    ("int63_to_" ^ wName, wFrom BT.intTy, sCopy(intSz, sz)) :-:
-	    (nm("unsigned_", wName, "int63"), wTo BT.intTy, uCopyChk(sz, intSz)) :-:
-	    (nm("signed_", wName, "int63"), wTo BT.intTy, sCopyChk(sz, intSz)) :-:
+	    ("int63_to_" ^ wName, wFrom BT.int63Ty, sCopy(63, sz)) :-:
+	    (nm("unsigned_", wName, "int63"), wTo BT.int63Ty, uCopyChk(sz, 63)) :-:
+	    (nm("signed_", wName, "int63"), wTo BT.int63Ty, sCopyChk(sz, 63)) :-:
 	  (* word type to/from int inf *)
 	    ("unsigned_" ^ wName ^ "_to_intinf", wTo BT.intinfTy, P.PRIM(CP.COPY_INF sz)) :-:
 	    ("signed_" ^ wName ^ "_to_intinf", wTo BT.intinfTy, P.PRIM(CP.EXTEND_INF sz)) :-:
@@ -299,37 +299,37 @@ structure PrimopBindings : sig
 	(* runtime hooks *)
 	  ("getvar", p1(ar(BT.unitTy,tv1)), P.PRIM CP.GETVAR) :-:
 	  ("setvar", p1(ar(tv1,BT.unitTy)), P.PRIM CP.SETVAR) :-:
-	  ("mkspecial", p2(ar(tup[BT.intTy,tv1],tv2)), P.PRIM CP.MKSPECIAL) :-:
-	  ("getspecial", p1(ar(tv1,BT.intTy)), P.PRIM CP.GETSPECIAL) :-:
-	  ("setspecial", p1(ar(tup[tv1,BT.intTy],BT.unitTy)), P.PRIM CP.SETSPECIAL) :-:
+	  ("mkspecial", p2(ar(tup[BT.defaultIntTy,tv1],tv2)), P.PRIM CP.MKSPECIAL) :-:
+	  ("getspecial", p1(ar(tv1,BT.defaultIntTy)), P.PRIM CP.GETSPECIAL) :-:
+	  ("setspecial", p1(ar(tup[tv1,BT.defaultIntTy],BT.unitTy)), P.PRIM CP.SETSPECIAL) :-:
 	  ("gethdlr", p1(ar(BT.unitTy,contTy tv1)), P.PRIM CP.GETHDLR) :-:
 	  ("sethdlr", p1(ar(contTy tv1,BT.unitTy)), P.PRIM CP.SETHDLR) :-:
-	  ("gettag", p1(ar(tv1,BT.intTy)), P.PRIM CP.GETTAG) :-:
-	  ("objlength", p1(ar(tv1, BT.intTy)), P.PRIM CP.OBJLENGTH) :-:
+	  ("gettag", p1(ar(tv1,BT.defaultIntTy)), P.PRIM CP.GETTAG) :-:
+	  ("objlength", p1(ar(tv1, BT.defaultIntTy)), P.PRIM CP.OBJLENGTH) :-:
 	(* inline basis operations *)
 	  ("inl_compose", p3(ar(tup[ar(tv2,tv3),ar(tv1,tv2)],ar(tv1,tv3))), P.INLINE InlP.COMPOSE) :-:
 	  ("inl_before", p2(ar(tup[tv1,tv2],tv1)), P.INLINE InlP.BEFORE) :-:
 	  ("inl_ignore", p1(ar(tv1,BT.unitTy)), P.INLINE InlP.IGNORE) :-:
 	  ("inl_identity", p1(ar(tv1,tv1)), P.INLINE InlP.IDENTITY) :-:
 	  ("inl_not", ar(BT.boolTy, BT.boolTy), P.INLINE InlP.NOT) :-:
-	  ("inl_chr", ar(BT.intTy, BT.charTy), P.INLINE InlP.CHR) :-:
-	  ("inl_ord", ar(BT.charTy, BT.intTy), P.PRIM(CP.COPY(8, Target.defaultIntSz))) :-:
+	  ("inl_chr", ar(BT.defaultIntTy, BT.charTy), P.INLINE InlP.CHR) :-:
+	  ("inl_ord", ar(BT.charTy, BT.defaultIntTy), P.PRIM(CP.COPY(8, Target.defaultIntSz))) :-: (* DEFAULT64: This assumes word and default ints are either both tagged or both untagged. *)
 	(* polymorphic array and vector *)
-	  ("mkarray", p1(ar(tup[BT.intTy,tv1],arrTy tv1)), P.INLINE InlP.MKARRAY) :-:
-	  ("arr_unsafe_sub", p1(ar(tup[arrTy tv1,BT.intTy],tv1)), P.PRIM CP.SUBSCRIPT) :-:
-	  ("arr_sub", p1(ar(tup[arrTy tv1,BT.intTy],tv1)), P.INLINE InlP.SUBSCRIPT) :-:
-	  ("vec_unsafe_sub", p1(ar(tup[vecTy tv1,BT.intTy],tv1)), P.PRIM CP.SUBSCRIPTV) :-:
-	  ("vec_sub", p1(ar(tup[vecTy tv1,BT.intTy],tv1)), P.INLINE InlP.SUBSCRIPTV) :-:
-	  ("arr_unsafe_update", p1(ar(tup[arrTy tv1,BT.intTy,tv1],BT.unitTy)), P.PRIM CP.UPDATE) :-:
-	  ("arr_update", p1(ar(tup[arrTy tv1,BT.intTy,tv1],BT.unitTy)), P.INLINE InlP.UPDATE) :-:
+	  ("mkarray", p1(ar(tup[BT.defaultIntTy,tv1],arrTy tv1)), P.INLINE InlP.MKARRAY) :-:
+	  ("arr_unsafe_sub", p1(ar(tup[arrTy tv1,BT.defaultIntTy],tv1)), P.PRIM CP.SUBSCRIPT) :-:
+	  ("arr_sub", p1(ar(tup[arrTy tv1,BT.defaultIntTy],tv1)), P.INLINE InlP.SUBSCRIPT) :-:
+	  ("vec_unsafe_sub", p1(ar(tup[vecTy tv1,BT.defaultIntTy],tv1)), P.PRIM CP.SUBSCRIPTV) :-:
+	  ("vec_sub", p1(ar(tup[vecTy tv1,BT.defaultIntTy],tv1)), P.INLINE InlP.SUBSCRIPTV) :-:
+	  ("arr_unsafe_update", p1(ar(tup[arrTy tv1,BT.defaultIntTy,tv1],BT.unitTy)), P.PRIM CP.UPDATE) :-:
+	  ("arr_update", p1(ar(tup[arrTy tv1,BT.defaultIntTy,tv1],BT.unitTy)), P.INLINE InlP.UPDATE) :-:
 	  ("arr_unboxed_update",
-	    p1(ar(tup[arrTy tv1,BT.intTy,tv1],BT.unitTy)), P.PRIM CP.UNBOXEDUPDATE) :-:
+	    p1(ar(tup[arrTy tv1,BT.defaultIntTy,tv1],BT.unitTy)), P.PRIM CP.UNBOXEDUPDATE) :-:
 	(* generic sequence operations*)
 	  ("newArray0", p1(ar(BT.unitTy, tv1)), P.PRIM CP.NEW_ARRAY0) :-:
-	  ("seq_length", p1(ar(tv1, BT.intTy)), P.PRIM CP.LENGTH) :-:
+	  ("seq_length", p1(ar(tv1, BT.defaultIntTy)), P.PRIM CP.LENGTH) :-:
 	  ("seq_data", p2(ar(tv1, tv2)), P.PRIM CP.GET_SEQ_DATA) :-:
-	  ("raw64Sub", p1(ar(tup[tv1, BT.intTy], BT.realTy)), P.PRIM CP.SUBSCRIPT_RAW64) :-:
-	  ("recordSub", p2(ar(tup[tv1,BT.intTy], tv2)), P.PRIM CP.SUBSCRIPT_REC)
+	  ("raw64Sub", p1(ar(tup[tv1, BT.defaultIntTy], BT.realTy)), P.PRIM CP.SUBSCRIPT_RAW64) :-:
+	  ("recordSub", p2(ar(tup[tv1,BT.defaultIntTy], tv2)), P.PRIM CP.SUBSCRIPT_REC)
 
   (* operations on word8 arrays/vectors *)
     val prims = defineMonoSeqOps (
@@ -342,8 +342,8 @@ structure PrimopBindings : sig
   (* operations on Real64 arrays *)
     val prims = let
         (* FIXME: these types really should be monomorphic!! *)
-	  val subTy = p1(ar(tup[tv1, BT.intTy], BT.realTy))
-	  val updTy = p1(ar(tup[tv1, BT.intTy, BT.realTy], BT.unitTy))
+	  val subTy = p1(ar(tup[tv1, BT.defaultIntTy], BT.realTy))
+	  val updTy = p1(ar(tup[tv1, BT.defaultIntTy, BT.realTy], BT.unitTy))
 	  val elemK = P.FLOAT 64
 	  fun mk (name, ty, p) = ("real64_arr_" ^ name, ty, p)
 	  in
@@ -355,20 +355,20 @@ structure PrimopBindings : sig
 	  end
 (* TODO: once we have real64vectors, we can define those operations too *)
 
-  (* default integer operations *)
-    val prims = defineIntOps (BT.intTy, intSz, prims)
+  (* Int63 operations *)
+    val prims = defineIntOps (BT.int63Ty, 63, prims)
 
-  (* extra operations for the default integer type, which essentially implement
+  (* extra operations for tagged Int.int, which essentially implement
    * word operations on ints (these are used to simplify the Basis Library
    * implementation).
    *)
     val prims = let
-	  val nk = P.UINT intSz
-	  val i_i = ar(BT.intTy, BT.intTy)
-	  val ii_i = ar(tup[BT.intTy, BT.intTy], BT.intTy)
-	  val iw_i = ar(tup[BT.intTy, BT.wordTy], BT.intTy)
-	  val ii_b = ar(tup[BT.intTy, BT.intTy], BT.boolTy)
-          val prefix = concat["int", Int.toString intSz, "_"]
+	  val nk = P.UINT 63
+	  val i_i = ar(BT.defaultIntTy, BT.defaultIntTy)
+	  val ii_i = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.defaultIntTy)
+	  val iw_i = ar(tup[BT.defaultIntTy, BT.defaultWordTy], BT.defaultIntTy)
+	  val ii_b = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.boolTy)
+          val prefix = "int63_"
 	  in
 	    prims :-:
 	  (* unchecked addition/subtraction *)
@@ -385,8 +385,8 @@ structure PrimopBindings : sig
 	    (prefix^"geu", ii_b, P.CMP{oper=CmpP.GTE, kind=nk})
 	  end
 
-  (* default word operations *)
-    val prims = defineWordOps (BT.wordTy, intSz, prims)
+  (* Word63 operations *)
+    val prims = defineWordOps (BT.word63Ty, 63, prims)
 
   (* Int32 operations *)
     val prims = defineIntOps (BT.int32Ty, 32, prims)
@@ -407,12 +407,7 @@ structure PrimopBindings : sig
     val prims = defineRealOps (BT.realTy, 64, prims)
 
   (* conversions integers and words *)
-    local
-      val iName = "int" ^ Int.toString intSz
-      val wName = "word" ^ Int.toString intSz
-    in
-    val prims = defineCvtOps (iName, BT.intTy, wName, BT.wordTy, intSz, prims)
-    end (* local *)
+    val prims = defineCvtOps ("int63", BT.int63Ty, "word63", BT.word63Ty, 63, prims)
     val prims = defineCvtOps ("int32", BT.int32Ty, "word32", BT.word32Ty, 32, prims)
     val prims = defineCvtOps ("int64", BT.int64Ty, "word64", BT.word64Ty, 64, prims)
 
@@ -428,10 +423,10 @@ structure PrimopBindings : sig
 	    (lgWName ^ "_to_word8", wFrom largeWTy, pTRUNC(largeWSz, 8)) :-:
 	    ("unsigned_word8_to_" ^ lgWName, wTo largeWTy, pCOPY(8, largeWSz)) :-:
 	    ("signed_word8_to_" ^ lgWName, wTo largeWTy, pEXTEND(8, largeWSz)) :-:
-	  (* word type to/from default int type *)
-	    ("int63_to_word8", wFrom BT.intTy, sCopy(intSz, 8)) :-:
-	    ("unsigned_word8_to_int63", wTo BT.intTy, uCopyChk(8, intSz)) :-:
-	    ("signed_word8_to_int63", wTo BT.intTy, sCopyChk(8, intSz)) :-:
+	  (* word type to/from int63 type *)
+	    ("int63_to_word8", wFrom BT.int63Ty, sCopy(63, 8)) :-:
+	    ("unsigned_word8_to_int63", wTo BT.int63Ty, uCopyChk(8, 63)) :-:
+	    ("signed_word8_to_int63", wTo BT.int63Ty, sCopyChk(8, 63)) :-:
 	  (* word type to/from int inf *)
 	    ("unsigned_word8_to_intinf", wTo BT.intinfTy, P.PRIM(CP.COPY_INF 8)) :-:
 	    ("signed_word8_to_intinf", wTo BT.intinfTy, P.PRIM(CP.EXTEND_INF 8)) :-:
@@ -443,34 +438,34 @@ structure PrimopBindings : sig
    *)
     val prims = if Target.is64
 	  then prims :-:
-	      ("trunc_int64_to_word63", ar(BT.int64Ty, BT.wordTy), pTRUNC(64, intSz)) :-:
-	      ("trunc_word64_to_int63", ar(BT.word64Ty, BT.intTy), pTRUNC(64, intSz)) :-:
+	      ("trunc_int64_to_word63", ar(BT.int64Ty, BT.word63Ty), pTRUNC(64, 63)) :-:
+	      ("trunc_word64_to_int63", ar(BT.word64Ty, BT.int63Ty), pTRUNC(64, 63)) :-:
 	      ("copy_int64_to_word64", ar(BT.int64Ty, BT.word64Ty), pCOPY(64, 64)) :-:
-	      ("copy_word63_to_int64", ar(BT.wordTy, BT.int64Ty), pCOPY(intSz, 64)) :-:
+	      ("copy_word63_to_int64", ar(BT.word63Ty, BT.int64Ty), pCOPY(63, 64)) :-:
 	      ("copy_word64_to_int64", ar(BT.word64Ty, BT.int64Ty), pCOPY(64, 64))
 	  else let
 	    in
 	      prims :-:
-	      ("trunc_int32_to_word31", ar(BT.int32Ty, BT.wordTy), pTRUNC(32, intSz)) :-:
-	      ("trunc_word32_to_int31", ar(BT.word32Ty, BT.intTy), pTRUNC(32, intSz)) :-:
+	      ("trunc_int32_to_word31", ar(BT.int32Ty, BT.word31Ty), pTRUNC(32, 31)) :-:
+	      ("trunc_word32_to_int31", ar(BT.word32Ty, BT.int31Ty), pTRUNC(32, 31)) :-:
 	      ("copy_int32_to_word32", ar(BT.int32Ty, BT.word32Ty), pCOPY(32, 32)) :-:
-	      ("copy_word31_to_int32", ar(BT.wordTy, BT.int32Ty), pCOPY(intSz, 32)) :-:
+	      ("copy_word31_to_int32", ar(BT.word31Ty, BT.int32Ty), pCOPY(31, 32)) :-:
 	      ("copy_word32_to_int32", ar(BT.word32Ty, BT.int32Ty), pCOPY(32, 32))
 	    end
 
 (* REAL32: FIXME *)
   (* real/int conversions *)
     val prims = let
-	  val r_i = ar(BT.realTy, BT.intTy)
+	  val r_i = ar(BT.realTy, BT.int63Ty)
 	  fun r2i (name, fl) =
-		(name, r_i, P.PRIM(CP.REAL_TO_INT{floor=fl, from=realSz, to=intSz}))
+		(name, r_i, P.PRIM(CP.REAL_TO_INT{floor=fl, from=realSz, to=63}))
 	  fun i2r (name, iTy, iSz) =
 		(name, ar(iTy, BT.realTy), P.PRIM(CP.INT_TO_REAL{from=iSz, to=realSz}))
 	  in
 	    prims :-:
 	    r2i("floor_real64_to_int63", true) :-:
 	    r2i("round_real64_to_int63", false) :-:
-	    i2r("int63_to_real64", BT.intTy, intSz) :-:
+	    i2r("int63_to_real64", BT.int63Ty, 63) :-:
 (* FIXME: add "word63_to_real64" *)
 	    (if Target.is64
 	      then i2r("int64_to_real64", BT.int64Ty, 64)
@@ -480,7 +475,7 @@ structure PrimopBindings : sig
   (* Char operations *)
     val prims = let
 	  val cc_b = ar(tup[BT.charTy, BT.charTy], BT.boolTy)
-	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT intSz})
+	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT 63})
 	  in
 	    prims :-:
 	    cmp("lt", CmpP.LT) :-:
@@ -502,7 +497,7 @@ structure PrimopBindings : sig
 
   (* primops for host properties *)
     val prims = prims :-:
-          ("host_word_size", ar(BT.unitTy, BT.intTy), P.INLINE InlP.HOST_WORD_SIZE) :-:
+          ("host_word_size", ar(BT.unitTy, BT.defaultIntTy), P.INLINE InlP.HOST_WORD_SIZE) :-:
           ("host_big_endian", ar(BT.unitTy, BT.boolTy), P.INLINE InlP.HOST_BIG_ENDIAN)
 
   (* primops for C FFI *)
@@ -553,7 +548,7 @@ structure PrimopBindings : sig
 	   * the record as a ML object, in case it passes thru a gc boundary.
 	   * rawupdatexxx writes to the record.
 	   *)
-	    mk("raw_record", p1(ar(BT.intTy,tv1)), P.PRIM(CP.RAW_RECORD{align = 64})) :-:
+	    mk("raw_record", p1(ar(BT.defaultIntTy,tv1)), P.PRIM(CP.RAW_RECORD{align = 64})) :-:
 	  (* load/store raw values *)
 	    mkLd("word8", BT.word32Ty, P.UINT 8) :-:
 	    mkLd("int8", BT.int32Ty, P.INT 8) :-:
@@ -606,7 +601,7 @@ fun prBind bind = let
 val _ = (
 	Control_Print.say "********************* Primop Bindings ********************\n";
 	Control_Print.say (concat[
-	    "* int size = ", Int.toString intSz,
+	    "* int size = ", Int.toString 63,
 	    "; real size = ", Int.toString realSz,
 	    "; large word size = ", Int.toString largeWSz,
 	    "\n"

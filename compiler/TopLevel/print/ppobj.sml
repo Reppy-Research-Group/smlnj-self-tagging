@@ -317,11 +317,13 @@ structure PPObj : PPOBJ =
       fun char2str obj = concat["#\"", Char.toString(Char.chr(Obj.toInt obj)), "\""]
       fun exn2str obj = General.exnName(Obj.toExn obj) ^ "(-)"
       val toStringTbl = [
-              (BT.intTycon,             Int.toString o Obj.toInt),
+              (BT.int31Tycon,           Int.toString o Obj.toInt),
               (BT.int32Tycon,           Int32.toString o Obj.toInt32),
+              (BT.int63Tycon,           Int.toString o Obj.toInt),
               (BT.int64Tycon,           Int64.toString o Obj.toInt64),
               (BT.intinfTycon,          PrintUtil.formatIntInf o Unsafe.cast),
-              (BT.wordTycon,            wordPrefx o Word.toString o Obj.toWord),
+              (BT.word31Tycon,          wordPrefx o Word.toString o Obj.toWord),
+              (BT.word63Tycon,          wordPrefx o Word.toString o Obj.toWord),
               (BT.word8Tycon,           wordPrefx o Word8.toString o Obj.toWord8),
               (BT.word32Tycon,          wordPrefx o Word32.toString o Obj.toWord32),
               (BT.word64Tycon,          wordPrefx o Word64.toString o Obj.toWord64),
