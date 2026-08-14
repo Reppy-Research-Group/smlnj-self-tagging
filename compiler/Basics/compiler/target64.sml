@@ -11,9 +11,10 @@ structure Target : TARGET =
 
     val pointerSz = 64
     val mlValueSz = 64
-    val defaultIntSz = 63
+    val defaultIntSz = 64 (* raw integers *)
     val defaultTaggedIntSz = 63
-    fun isTaggedIntSz sz = (sz < mlValueSz)
+    fun isTaggedIntSz 63 = true
+      | isTaggedIntSz _ = false
     val fixedIntSz = 64
     val defaultRealSz = 64
     val is64 = true
