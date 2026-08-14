@@ -153,7 +153,7 @@ fun transNum ({ival, ty}: T.ty IntConst.t) : con =
 	else if TU.equalType(ty, BT.word31Ty)
 	  then mkWORD 31
 	else if TU.equalType(ty, BT.word8Ty)
-	  then mkWORD 63  (* DEFAULT64: or:  mkWORD 8 (if we want accurate char size) or: mkWORD 64 *)
+	  then mkWORD Target.defaultIntSz  (* DEFAULT64: or:  mkWORD 8 (if we want accurate char size) or: mkWORD 64 *)
 	else if TU.equalType(ty, BT.word63Ty)
 	  then mkWORD 63
 	else if TU.equalType(ty, BT.word32Ty)
@@ -1345,15 +1345,14 @@ and mkExp (exp, d) =
 	    else if TU.equalType (ty, BT.word32Ty) then WORD{ival = ival, ty = 32}
 	    else if TU.equalType (ty, BT.word31Ty) then WORD{ival = ival, ty = 31}
 	  (* NOTE: 8-bit word is promoted to default tagged word representation *)
-	    else if TU.equalType (ty, BT.word8Ty) then WORD{ival = ival, ty = 63}
+	    else if TU.equalType (ty, BT.word8Ty) then WORD{ival = ival, ty = Target.defaultIntSz}
 	    else (ppType "### NUMexp: " ty; bug "translate NUMexp"))
 (* REAL32: handle 32-bit reals *)
         | mkExp0 (REALexp(_, {rval, ty})) = REAL{rval = rval, ty = Tgt.defaultRealSz}
         | mkExp0 (STRINGexp s) = STRING s
 (* QUESTION: do we want to map characters to word8? *)
 (** NOTE: the following won't work for cross compiling to multi-byte characters **)
-        | mkExp0 (CHARexp c) = INT{ival = IntInf.fromInt (Char.ord c),
-				   ty = Tgt.defaultTaggedIntSz} (* DEFAULT64: tagged? *)
+        | mkExp0 (CHARexp c) = INT{ival = IntInf.fromInt (Char.ord c), ty = Target.defaultIntSz} (* DEFAULT64: tagged? *)
         | mkExp0 (RECORDexp []) = unitLexp
         | mkExp0 (RECORDexp xs) =
             if sorted xs then RECORD (map (fn (_,e) => mkExp0 e) xs)
