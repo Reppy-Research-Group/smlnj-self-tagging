@@ -264,10 +264,14 @@ structure PrimopBindings : sig
 	  (* int type to/from intinf *)
 	    (iName ^  "_to_intinf", iTo BT.intinfTy, P.PRIM(CP.EXTEND_INF sz)) :-:
 	    ("intinf_to_" ^ iName, iFrom BT.intinfTy, P.PRIM(CP.TEST_INF sz)) :-:
-	  (* word type to/from default int type *)
+	  (* word type to/from int 63 type *)
 	    ("int63_to_" ^ wName, wFrom BT.int63Ty, sCopy(63, sz)) :-:
 	    (nm("unsigned_", wName, "int63"), wTo BT.int63Ty, uCopyChk(sz, 63)) :-:
 	    (nm("signed_", wName, "int63"), wTo BT.int63Ty, sCopyChk(sz, 63)) :-:
+	  (* word type to/from int 64 type *)
+	    ("int64_to_" ^ wName, wFrom BT.int64Ty, sCopy(64, sz)) :-:
+	    (nm("unsigned_", wName, "int64"), wTo BT.int64Ty, uCopyChk(sz, 64)) :-:
+	    (nm("signed_", wName, "int64"), wTo BT.int64Ty, sCopyChk(sz, 64)) :-:
 	  (* word type to/from int inf *)
 	    ("unsigned_" ^ wName ^ "_to_intinf", wTo BT.intinfTy, P.PRIM(CP.COPY_INF sz)) :-:
 	    ("signed_" ^ wName ^ "_to_intinf", wTo BT.intinfTy, P.PRIM(CP.EXTEND_INF sz)) :-:
@@ -362,13 +366,13 @@ structure PrimopBindings : sig
    * word operations on ints (these are used to simplify the Basis Library
    * implementation).
    *)
-    val prims = let
-	  val nk = P.UINT 63
-	  val i_i = ar(BT.defaultIntTy, BT.defaultIntTy)
-	  val ii_i = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.defaultIntTy)
-	  val iw_i = ar(tup[BT.defaultIntTy, BT.defaultWordTy], BT.defaultIntTy)
-	  val ii_b = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.boolTy)
-          val prefix = "int63_"
+    fun defineFastArith (sz, intTy, wordTy, prims) = let
+	  val nk = P.UINT sz
+	  val i_i = ar(intTy, intTy)
+	  val ii_i = ar(tup[intTy, intTy], intTy)
+	  val iw_i = ar(tup[intTy, wordTy], intTy)
+	  val ii_b = ar(tup[intTy, intTy], BT.boolTy)
+          val prefix = concat ["int", Int.toString sz, "_"]
 	  in
 	    prims :-:
 	  (* unchecked addition/subtraction *)
@@ -384,6 +388,31 @@ structure PrimopBindings : sig
 	    (prefix^"ltu", ii_b, P.CMP{oper=CmpP.LT, kind=nk}) :-:
 	    (prefix^"geu", ii_b, P.CMP{oper=CmpP.GTE, kind=nk})
 	  end
+    val prims = defineFastArith (63, BT.int63Ty, BT.word63Ty, prims)
+    val prims = defineFastArith (64, BT.int64Ty, BT.word64Ty, prims)
+
+(*     val prims = let *)
+(* 	  val nk = P.UINT (Target.defaultIntSz) *)
+(* 	  val i_i = ar(BT.defaultIntTy, BT.defaultIntTy) *)
+(* 	  val ii_i = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.defaultIntTy) *)
+(* 	  val iw_i = ar(tup[BT.defaultIntTy, BT.defaultWordTy], BT.defaultIntTy) *)
+(* 	  val ii_b = ar(tup[BT.defaultIntTy, BT.defaultIntTy], BT.boolTy) *)
+(*           val prefix = concat ["int", Int.toString Target.defaultIntSz, "_"] *)
+(* 	  in *)
+(* 	    prims :-: *)
+(* 	  (1* unchecked addition/subtraction *1) *)
+(* 	    (prefix^"unsafe_add", ii_i, P.PURE{oper=PureP.ADD, kind=nk}) :-: *)
+(* 	    (prefix^"unsafe_sub", ii_i, P.PURE{oper=PureP.SUB, kind=nk}) :-: *)
+(* 	  (1* bitwise operations *1) *)
+(* 	    (prefix^"orb", ii_i, P.PURE{oper=PureP.ORB, kind=nk}) :-: *)
+(* 	    (prefix^"xorb", ii_i, P.PURE{oper=PureP.XORB, kind=nk}) :-: *)
+(* 	    (prefix^"andb", ii_i, P.PURE{oper=PureP.ANDB, kind=nk}) :-: *)
+(* 	    (prefix^"raw_rshift", iw_i, P.PURE{oper=PureP.RSHIFT, kind=nk}) :-: *)
+(* 	    (prefix^"raw_lshift", iw_i, P.PURE{oper=PureP.LSHIFT, kind=nk}) :-: *)
+(* 	    (prefix^"notb", i_i, P.PURE{oper=PureP.NOTB, kind=nk}) :-: *)
+(* 	    (prefix^"ltu", ii_b, P.CMP{oper=CmpP.LT, kind=nk}) :-: *)
+(* 	    (prefix^"geu", ii_b, P.CMP{oper=CmpP.GTE, kind=nk}) *)
+(* 	  end *)
 
   (* Word63 operations *)
     val prims = defineWordOps (BT.word63Ty, 63, prims)
