@@ -92,7 +92,8 @@ structure InlineT =
         val max    : real * real -> real  = InLine.real64_max
 
 	val from_int64 : int64 -> real    = InLine.int64_to_real64
-	val from_int : int -> real        = InLine.int63_to_real64
+	val from_int63 : int63 -> real        = InLine.int63_to_real64
+        val from_int : int -> real = from_int64
 
 (* FIXME: should use InLine.floor_real64_to_int, but it is currently not supported by
  * the CPS code generator.  Can also use InLine.round_real64_to_int.
@@ -140,8 +141,8 @@ structure InlineT =
 	  fun i32chk oper args = let
 		val res = oper args
 		in
-		  if InLine.int63_lt(castToInt res, ~2147483648)
-		  orelse InLine.int63_lt(2147483647, castToInt res)
+		  if InLine.int64_lt(castToInt res, ~2147483648)
+		  orelse InLine.int64_lt(2147483647, castToInt res)
 		    then raise Assembly.Overflow
 		    else res
 		end
@@ -169,41 +170,41 @@ structure InlineT =
 
     structure Int63 =
       struct
-	val toInt : int -> int		= InLine.inl_identity
-	val fromInt : int -> int	= InLine.inl_identity
+	val toInt : int63 -> int63		= InLine.inl_identity
+	val fromInt : int63 -> int63	= InLine.inl_identity
 	val toLarge			= InLine.int63_to_intinf
 	val fromLarge			= InLine.intinf_to_int63
 
-        val op *    : int * int -> int  = InLine.int63_mul
-        val op quot : int * int -> int  = InLine.int63_quot
-        val op rem  : int * int -> int  = InLine.int63_rem
-        val op div  : int * int -> int  = InLine.int63_div
-        val op mod  : int * int -> int  = InLine.int63_mod
-        val op +    : int * int -> int  = InLine.int63_add
-        val op -    : int * int -> int  = InLine.int63_sub
-        val ~       : int -> int        = InLine.int63_neg
-        val andb    : int * int -> int  = InLine.int63_andb
-        val orb     : int * int -> int  = InLine.int63_orb
-        val xorb    : int * int -> int  = InLine.int63_xorb
-        val rshift  : int * word -> int = InLine.int63_raw_rshift
-        val lshift  : int * word -> int = InLine.int63_raw_lshift
-        val notb    : int -> int        = InLine.int63_notb
-        val op <    : int * int -> bool = InLine.int63_lt
-        val op <=   : int * int -> bool = InLine.int63_le
-        val op >    : int * int -> bool = InLine.int63_gt
-        val op >=   : int * int -> bool = InLine.int63_ge
-        val op =    : int * int -> bool = InLine.int63_eql
-        val op <>   : int * int -> bool = InLine.int63_neq
-        val ltu     : int * int -> bool = InLine.int63_ltu
-        val geu     : int * int -> bool = InLine.int63_geu
+        val op *    : int63 * int63 -> int63  = InLine.int63_mul
+        val op quot : int63 * int63 -> int63  = InLine.int63_quot
+        val op rem  : int63 * int63 -> int63  = InLine.int63_rem
+        val op div  : int63 * int63 -> int63  = InLine.int63_div
+        val op mod  : int63 * int63 -> int63  = InLine.int63_mod
+        val op +    : int63 * int63 -> int63  = InLine.int63_add
+        val op -    : int63 * int63 -> int63  = InLine.int63_sub
+        val ~       : int63 -> int63        = InLine.int63_neg
+        val andb    : int63 * int63 -> int63  = InLine.int63_andb
+        val orb     : int63 * int63 -> int63  = InLine.int63_orb
+        val xorb    : int63 * int63 -> int63  = InLine.int63_xorb
+        val rshift  : int63 * word63 -> int63 = InLine.int63_raw_rshift
+        val lshift  : int63 * word63 -> int63 = InLine.int63_raw_lshift
+        val notb    : int63 -> int63        = InLine.int63_notb
+        val op <    : int63 * int63 -> bool = InLine.int63_lt
+        val op <=   : int63 * int63 -> bool = InLine.int63_le
+        val op >    : int63 * int63 -> bool = InLine.int63_gt
+        val op >=   : int63 * int63 -> bool = InLine.int63_ge
+        val op =    : int63 * int63 -> bool = InLine.int63_eql
+        val op <>   : int63 * int63 -> bool = InLine.int63_neq
+        val ltu     : int63 * int63 -> bool = InLine.int63_ltu
+        val geu     : int63 * int63 -> bool = InLine.int63_geu
 
-        val min     : int * int -> int  = InLine.int63_min
-        val max     : int * int -> int  = InLine.int63_max
-        val abs     : int -> int = InLine.int63_abs
+        val min     : int63 * int63 -> int63  = InLine.int63_min
+        val max     : int63 * int63 -> int63  = InLine.int63_max
+        val abs     : int63 -> int63 = InLine.int63_abs
 
       (* fast add/subtract that does not do overflow checking *)
-	val fast_add : int * int -> int = InLine.int63_unsafe_add
-	val fast_sub : int * int -> int = InLine.int63_unsafe_sub
+	val fast_add : int63 * int63 -> int63 = InLine.int63_unsafe_add
+	val fast_sub : int63 * int63 -> int63 = InLine.int63_unsafe_sub
       end
 
     structure Int64 =
@@ -221,6 +222,12 @@ structure InlineT =
         val op div  : int64 * int64 -> int64  = InLine.int64_div
         val op mod  : int64 * int64 -> int64  = InLine.int64_mod
         val ~       : int64 -> int64          = InLine.int64_neg
+        val andb    : int64 * int64 -> int64  = InLine.int64_andb
+        val orb     : int64 * int64 -> int64  = InLine.int64_orb
+        val xorb    : int64 * int64 -> int64  = InLine.int64_xorb
+        val rshift  : int64 * word -> int64 = InLine.int64_raw_rshift
+        val lshift  : int64 * word -> int64 = InLine.int64_raw_lshift
+        val notb    : int64 -> int64        = InLine.int64_notb
         val op <    : int64 * int64 -> bool   = InLine.int64_lt
         val op <=   : int64 * int64 -> bool   = InLine.int64_le
         val op >    : int64 * int64 -> bool   = InLine.int64_gt
@@ -235,66 +242,66 @@ structure InlineT =
 
     structure IntInf =
       struct
-	val toInt     : intinf -> int    = InLine.intinf_to_int63
-	val fromInt   : int -> intinf    = InLine.int63_to_intinf
+	val toInt     : intinf -> int    = InLine.intinf_to_int64
+	val fromInt   : int -> intinf    = InLine.int64_to_intinf
 	val toLarge   : intinf -> intinf = InLine.inl_identity
 	val fromLarge : intinf -> intinf = InLine.inl_identity
       end
 
-    structure Int = Int63
+    structure Int = Int64
 
-    structure Word =
+    structure Word63 =
       struct
-	val toLarge : word -> word64	  = InLine.unsigned_word63_to_word64
-	val toLargeX : word -> word64	  = InLine.signed_word63_to_word64
-	val fromLarge : word64 -> word	  = InLine.word64_to_word63
-	val toInt : word -> int		  = InLine.unsigned_word63_to_int63
-	val toIntX : word -> int          = InLine.signed_word63_to_int63
-	val fromInt : int -> word         = InLine.int63_to_word63
-	val toLargeInt : word -> intinf	  = InLine.unsigned_word63_to_intinf
-	val toLargeIntX : word -> intinf  = InLine.signed_word63_to_intinf
-	val fromLargeInt : intinf -> word = InLine.intinf_to_word63
+	val toLarge : word63 -> word64	  = InLine.unsigned_word63_to_word64
+	val toLargeX : word63 -> word64	  = InLine.signed_word63_to_word64
+	val fromLarge : word64 -> word63	  = InLine.word64_to_word63
+	val toInt : word63 -> int		  = InLine.copy_word63_to_int64
+	val toIntX : word63 -> int          = InLine.signed_word63_to_int64
+	val fromInt : int -> word63         = InLine.int64_to_word63
+	val toLargeInt : word63 -> intinf	  = InLine.unsigned_word63_to_intinf
+	val toLargeIntX : word63 -> intinf  = InLine.signed_word63_to_intinf
+	val fromLargeInt : intinf -> word63 = InLine.intinf_to_word63
 
       (* extra conversions *)
-	val toInt64 : word -> int64 = InLine.copy_word63_to_int64
-	val toWord64 : word -> word64 = InLine.word63_to_word64
-	val fromWord64 : word64 -> word = InLine.word64_to_word63
+	val toInt64 : word63 -> int64 = InLine.copy_word63_to_int64
+	val toWord64 : word63 -> word64 = InLine.word63_to_word64
+	val fromWord64 : word64 -> word63 = InLine.word64_to_word63
 
-        val orb     : word * word -> word = InLine.word63_orb
-        val xorb    : word * word -> word = InLine.word63_xorb
-        val andb    : word * word -> word = InLine.word63_andb
-        val op *    : word * word -> word = InLine.word63_mul
-        val op +    : word * word -> word = InLine.word63_add
-        val op -    : word * word -> word = InLine.word63_sub
-	val ~       : word -> word        = InLine.word63_neg
-        val op div  : word * word -> word = InLine.word63_div
-        val op mod  : word * word -> word = InLine.word63_mod
-        val op >    : word * word -> bool = InLine.word63_gt
-        val op >=   : word * word -> bool = InLine.word63_ge
-        val op <    : word * word -> bool = InLine.word63_lt
-        val op <=   : word * word -> bool = InLine.word63_le
-        val rshift  : word * word -> word = InLine.word63_raw_rshift
-        val rshiftl : word * word -> word = InLine.word63_raw_rshiftl
-        val lshift  : word * word -> word = InLine.word63_raw_lshift
-	val chkLshift  : word * word -> word = InLine.word63_lshift
-	val chkRshift  : word * word -> word = InLine.word63_rshift
-	val chkRshiftl : word * word -> word = InLine.word63_rshiftl
-        val notb : word -> word = InLine.word63_notb
+        val orb     : word63 * word63 -> word63 = InLine.word63_orb
+        val xorb    : word63 * word63 -> word63 = InLine.word63_xorb
+        val andb    : word63 * word63 -> word63 = InLine.word63_andb
+        val op *    : word63 * word63 -> word63 = InLine.word63_mul
+        val op +    : word63 * word63 -> word63 = InLine.word63_add
+        val op -    : word63 * word63 -> word63 = InLine.word63_sub
+	val ~       : word63 -> word63        = InLine.word63_neg
+        val op div  : word63 * word63 -> word63 = InLine.word63_div
+        val op mod  : word63 * word63 -> word63 = InLine.word63_mod
+        val op >    : word63 * word63 -> bool = InLine.word63_gt
+        val op >=   : word63 * word63 -> bool = InLine.word63_ge
+        val op <    : word63 * word63 -> bool = InLine.word63_lt
+        val op <=   : word63 * word63 -> bool = InLine.word63_le
+        val rshift  : word63 * word -> word63 = InLine.word63_raw_rshift
+        val rshiftl : word63 * word -> word63 = InLine.word63_raw_rshiftl
+        val lshift  : word63 * word -> word63 = InLine.word63_raw_lshift
+	val chkLshift  : word63 * word -> word63 = InLine.word63_lshift
+	val chkRshift  : word63 * word -> word63 = InLine.word63_rshift
+	val chkRshiftl : word63 * word -> word63 = InLine.word63_rshiftl
+        val notb : word63 -> word63 = InLine.word63_notb
 
-        val rotateR : word * word -> word  = InLine.word63_rotr
-        val rotateL : word * word -> word  = InLine.word63_rotl
+        val rotateR : word63 * word -> word63  = InLine.word63_rotr
+        val rotateL : word63 * word -> word63  = InLine.word63_rotl
 
-        val cntZeros : word -> int         = InLine.word63_cnt_zeros
-        val cntOnes : word -> int          = InLine.word63_cnt_ones
-        val cntLeadingZeros : word -> int  = InLine.word63_cnt_leading_zeros
-        val cntLeadingOnes : word -> int   = InLine.word63_cnt_leading_ones
-        val cntTrailingZeros : word -> int = InLine.word63_cnt_trailing_zeros
-        val cntTrailingOnes : word -> int  = InLine.word63_cnt_trailing_ones
-        val isPowOf2 : word -> bool        = InLine.word63_is_pow2
-        val ceilLog2 : word -> word        = InLine.word63_ceil_log2
+        val cntZeros : word63 -> int         = InLine.word63_cnt_zeros
+        val cntOnes : word63 -> int          = InLine.word63_cnt_ones
+        val cntLeadingZeros : word63 -> int  = InLine.word63_cnt_leading_zeros
+        val cntLeadingOnes : word63 -> int   = InLine.word63_cnt_leading_ones
+        val cntTrailingZeros : word63 -> int = InLine.word63_cnt_trailing_zeros
+        val cntTrailingOnes : word63 -> int  = InLine.word63_cnt_trailing_ones
+        val isPowOf2 : word63 -> bool        = InLine.word63_is_pow2
+        val ceilLog2 : word63 -> word        = InLine.word63_ceil_log2
 
-        val min     : word * word -> word  = InLine.word63_min
-        val max     : word * word -> word  = InLine.word63_max
+        val min     : word63 * word63 -> word63  = InLine.word63_min
+        val max     : word63 * word63 -> word63  = InLine.word63_max
       end
 
     structure Word8 =
@@ -412,9 +419,9 @@ structure InlineT =
 	val toLarge : word64 -> word64		 = InLine.inl_identity
 	val toLargeX : word64 -> word64		 = InLine.inl_identity
 	val fromLarge : word64 -> word64	 = InLine.inl_identity
-	val toInt : word64 -> int		 = InLine.unsigned_word64_to_int63
-	val toIntX : word64 -> int		 = InLine.signed_word64_to_int63
-	val fromInt : int -> word64		 = InLine.int63_to_word64
+	val toInt : word64 -> int63		 = InLine.unsigned_word64_to_int63
+	val toIntX : word64 -> int63		 = InLine.signed_word64_to_int63
+	val fromInt : int -> word64		 = InLine.int64_to_word64
 	val toLargeInt : word64 -> intinf	 = InLine.unsigned_word64_to_intinf
 	val toLargeIntX : word64 -> intinf	 = InLine.signed_word64_to_intinf
 	val fromLargeInt : intinf -> word64	 = InLine.intinf_to_word64
@@ -457,6 +464,8 @@ structure InlineT =
         val max : word64 * word64 -> word64      = InLine.word64_max
 
       end
+
+    structure Word = Word64
 
     structure Char =
       struct
