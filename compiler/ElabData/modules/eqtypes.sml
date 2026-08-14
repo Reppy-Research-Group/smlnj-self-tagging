@@ -521,10 +521,9 @@ fun isEqTycon(GENtyc { eq, ... }) =
 	  | OBJ => true
 	  | _ => false)
   | isEqTycon(DEFtyc{tyfun as TYFUN{arity,...},...}) =
-      isEqType(applyTyfun(tyfun,replicate(arity,BasicTypes.intTy)))
+      isEqType(applyTyfun(tyfun,replicate(arity,BasicTypes.defaultIntTy)))
   | isEqTycon _ = bug "isEqTycon"
 
 end (* local *)
 end (* structure EqTypes *)
-
 

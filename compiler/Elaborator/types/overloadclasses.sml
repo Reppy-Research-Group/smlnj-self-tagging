@@ -13,12 +13,12 @@ local structure BT = BasicTypes in
   type class = Types.ty list
 
 (* overload classes *)
-    val intClass = [BT.intTy,
+    val intClass = [BT.int63Ty,
 		    BT.int32Ty,
 		    BT.int64Ty,
 		    BT.intinfTy]
 
-    val wordClass = [BT.wordTy,
+    val wordClass = [BT.word63Ty,
 		     BT.word8Ty,
 		     BT.word32Ty,
 		     BT.word64Ty]

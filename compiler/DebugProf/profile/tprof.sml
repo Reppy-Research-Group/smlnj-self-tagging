@@ -34,7 +34,7 @@ local structure SP = SymPath
 
       structure T = Types
       structure BT = BasicTypes
-      val intTy = BT.intTy
+      val intTy = BT.defaultIntTy
       val unitTy = BT.unitTy
       val tupleTy = BT.tupleTy
       val refTycon = BT.refTycon
@@ -57,7 +57,7 @@ fun poly1 ty =
 (*
 val updateop =
   let val t = poly1(tupleTy[CONty(arrayTycon,[IBOUND 0]),
-  			    intTy, IBOUND 0] --> unitTy)
+                            intTy, IBOUND 0] --> unitTy)
    in VALvar{path=SP.SPATH[S.varSymbol "unboxedupdate"], typ=ref t,
              access=A.nullAcc,
 	     info=II'.mkPrimInfo(P.UNBOXEDUPDATE, t)}

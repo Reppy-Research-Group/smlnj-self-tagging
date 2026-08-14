@@ -59,13 +59,13 @@ structure TDPInstrument :> TDP_INSTRUMENT = struct
     infix -->
     val op --> = BT.-->
 
-    val i_i_Ty = BT.intTy --> BT.intTy
-    val ii_u_Ty = BT.tupleTy [BT.intTy, BT.intTy] --> BT.unitTy
+    val i_i_Ty = BT.defaultIntTy --> BT.defaultIntTy
+    val ii_u_Ty = BT.tupleTy [BT.defaultIntTy, BT.defaultIntTy] --> BT.unitTy
     val ii_u_u_Ty = ii_u_Ty --> BT.unitTy
     val u_u_Ty = BT.unitTy --> BT.unitTy
     val u_u_u_Ty = BT.unitTy --> u_u_Ty
     val iiis_u_Ty =
-	BT.tupleTy [BT.intTy, BT.intTy, BT.intTy, BT.unitTy] --> BT.unitTy
+	BT.tupleTy [BT.defaultIntTy, BT.defaultIntTy, BT.defaultIntTy, BT.unitTy] --> BT.unitTy
 
     fun instrument0 isSpecial (senv, cinfo: A.dec CompInfo.compInfo) d = let
 
@@ -121,10 +121,10 @@ structure TDPInstrument :> TDP_INSTRUMENT = struct
 	val tdp_nopush_var = tmpvar ("<tdp_nopush>", ii_u_Ty)
 	val tdp_enter_var = tmpvar ("<tdp_enter>", ii_u_Ty)
 	val tdp_reserve_var = tmpvar ("<tdp_reserve>", i_i_Ty)
-	val tdp_module_var = tmpvar ("<tdp_module>", BT.intTy)
+	val tdp_module_var = tmpvar ("<tdp_module>", BT.defaultIntTy)
 
 	fun VARexp v = A.VARexp (ref v, [])
-	fun INTexp i = A.NUMexp("<lit>", {ival = IntInf.fromInt i, ty = BT.intTy})
+	fun INTexp i = A.NUMexp("<lit>", {ival = IntInf.fromInt i, ty = BT.defaultIntTy})
 
 	val uExp = AU.unitExp
 	val pushexp = A.APPexp (VARexp tdp_push_var, uExp)

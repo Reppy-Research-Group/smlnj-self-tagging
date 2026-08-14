@@ -18,8 +18,11 @@ signature BASICTYPES =
     val unitTycon : Types.tycon
     val unitTy : Types.ty
 
-    val intTycon : Types.tycon
-    val intTy : Types.ty
+    val int31Tycon : Types.tycon
+    val int31Ty : Types.ty
+
+    val int63Tycon : Types.tycon
+    val int63Ty : Types.ty
 
     val int32Tycon : Types.tycon
     val int32Ty : Types.ty
@@ -30,8 +33,14 @@ signature BASICTYPES =
     val intinfTycon : Types.tycon
     val intinfTy : Types.ty
 
-    val wordTycon : Types.tycon
-    val wordTy : Types.ty
+    val defaultIntTycon : Types.tycon
+    val defaultIntTy : Types.ty
+
+    val word31Tycon : Types.tycon
+    val word31Ty : Types.ty
+
+    val word63Tycon : Types.tycon
+    val word63Ty : Types.ty
 
     val word8Tycon : Types.tycon
     val word8Ty: Types.ty
@@ -41,6 +50,9 @@ signature BASICTYPES =
 
     val word64Tycon : Types.tycon
     val word64Ty : Types.ty
+
+    val defaultWordTycon : Types.tycon
+    val defaultWordTy : Types.ty
 
     val realTycon  : Types.tycon
     val realTy : Types.ty

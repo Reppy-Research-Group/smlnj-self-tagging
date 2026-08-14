@@ -68,7 +68,7 @@ structure PrimTyc :> PRIM_TYC =
 	    | PT_VOID   => "VOID"
 	  (* end case *))
 
-    val ptc_int    = PT_NUM Target.defaultIntSz
+    val ptc_int    = PT_NUM Target.defaultIntSz (* DEFAULT64: CAUTION *)
     fun ptc_num n  = PT_NUM n
     val ptc_real   = PT_REAL Target.defaultRealSz
     val ptc_string = PT_STRING
@@ -175,11 +175,13 @@ structure PrimTyc :> PRIM_TYC =
   (* mapping from Types.tycon to primtycs *)
     val primTycons = [
 	  (* int types *)
-	    (BT.intTycon, PT_NUM Target.defaultIntSz),
+	    (BT.int31Tycon, numPrim 31),
 	    (BT.int32Tycon, numPrim 32),
+	    (BT.int63Tycon, numPrim 63),
 	    (BT.int64Tycon, numPrim 64),
 	  (* word types *)
-	    (BT.wordTycon, PT_NUM Target.defaultIntSz),
+	    (BT.word31Tycon, PT_NUM 31),
+	    (BT.word63Tycon, PT_NUM 63),
 	    (BT.word8Tycon, numPrim 8),
 	    (BT.word32Tycon, numPrim 32),
 	    (BT.word64Tycon, numPrim 64),

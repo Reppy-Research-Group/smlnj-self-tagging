@@ -35,8 +35,8 @@ structure OverloadLit : OVERLOADLIT =
 
     structure BT = BasicTypes
 
-    val intTypes = [BT.intTy, BT.int32Ty, BT.int64Ty, BT.intinfTy]
+    val intTypes = [BT.int63Ty, BT.int32Ty, BT.int64Ty, BT.intinfTy]
 
-    val wordTypes = [BT.wordTy, BT.word8Ty, BT.word32Ty, BT.word64Ty]
+    val wordTypes = [BT.word63Ty, BT.word8Ty, BT.word32Ty, BT.word64Ty]
 
   end (* structure OverloadLit *)
