@@ -132,6 +132,7 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
 		      split (ix+1, params, boxed, (ix, kind)::raw32, raw64)
 		  | doRaw (kind, 64) =
 		      split (ix+1, params, boxed, raw32, (ix, kind)::raw64)
+                  (* DEFAULT64: add more raw types here *)
 		  | doRaw _ = error ["split: unexpected raw type ", CFGUtil.tyToString ty]
 		in
 		  case ty
