@@ -90,21 +90,15 @@ fun symToClass (s: S.symbol) : OLC.class =
       | NONE => bug "symToClass"
 
 fun defaultTy (s: S.symbol) : T.ty =
-    let fun choose class =
-	    if OLC.inClass(BT.defaultIntTy, class) then BT.defaultIntTy
-	    else if OLC.inClass(BT.defaultWordTy, class) then BT.defaultWordTy
-	    else (* For other classes, the first variant is presumed to be the
-                  * default. *)
-                (case class
-		   of ty :: _ => ty
-		    | nil => bug "defaultTy")
-    in choose (symToClass s)
-    end
+    OLC.default (symToClass s)
 
 fun resolveVar (name: S.symbol, indicator: T.ty, variants) : V.var option =
     let fun getVariant (indicator: T.ty, class, variants) : V.var option =
-            (* ASSERT: length class = length variants, also, the class and
-             * variants are declared in the same order. *)
+            (* ASSERT: length class = length variants, and also, the class
+             * members and variants are declared in the same order;
+             * that is, the list in overloadclasses.sml and the _overload
+             * declarations in pervasive.sml must be consistent.
+             *)
 	    let fun get (ty1::restTy, v1::restVariants) =
 		    if TU.equalType(indicator, ty1) then SOME v1
 		    else get(restTy,restVariants)
@@ -112,7 +106,7 @@ fun resolveVar (name: S.symbol, indicator: T.ty, variants) : V.var option =
 		  | get _ = bug "getVariant: length class <> length variants"
 	    in get (class, variants)
 	    end
-    in getVariant (indicator, symToClass name, variants)
+    in  getVariant (indicator, OLC.members (symToClass name), variants)
     end
 
 end (* local *)
