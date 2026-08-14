@@ -54,7 +54,10 @@ structure Switch : sig
   (* default integer type/values *)
     local
       val tt = {sz = Target.defaultTaggedIntSz, tag = true}
+      val dt = {sz = Target.defaultIntSz, tag = Target.isTaggedIntSz Target.defaultIntSz}
     in
+    val defaultNumTy = CPS.NUMt dt
+    fun defaultNum n = CPS.NUM{ival = n, ty = tt}
     val tagNumTy = CPS.NUMt tt
     fun tagNum n = CPS.NUM{ival = n, ty = tt}
     val tagEnumTy = CPS.ENUMt
@@ -242,6 +245,19 @@ structure Switch : sig
 	  in
 	    gen (List.length cases, cases)
 	  end (* boxedNumSwitch *)
+      | boxedNumSwitch _ = bug "boxedNumSwitch: not a number"
+
+    fun numSwitch(arg, nk, cases, default, optRange) = let
+          val sz =
+            case nk
+              of CPS.P.INT sz => sz
+               | CPS.P.UINT sz => sz
+               | CPS.P.FLOAT _ => bug "floating point switch"
+          in
+            if Target.isTaggedIntSz sz
+              then taggedNumSwitch(arg, nk, cases, default, optRange)
+              else boxedNumSwitch(arg, boxNumTy sz, nk, cases, default)
+          end
 
   (* generate a switch for string patterns *)
     fun stringSwitch (arg, cases, default : CPS.cexp) = let
@@ -277,8 +293,8 @@ structure Switch : sig
 	(* cases by length *)
 	  val bylength = List.map genGrp (coalesce (List.map un_str cases))
 	  in
-	    pure(CPS.P.LENGTH, [arg], tagNumTy,
-	      fn len => taggedNumSwitch(len, tagWordKind, bylength, default, NONE))
+	    pure(CPS.P.LENGTH, [arg], defaultNumTy,
+	      fn len => numSwitch(len, CPS.P.UINT Target.defaultIntSz, bylength, default, NONE))
 	  end
 
   (* does a datatype constructor have a boxed representation? *)
@@ -343,18 +359,14 @@ structure Switch : sig
 		  | un_int _ = bug "un_int"
 		val cases = List.map un_int cases
 		in
-		  if Target.isTaggedIntSz ty
-		    then taggedNumSwitch(arg, tagIntKind, cases, default, NONE)
-		    else boxedNumSwitch(arg, boxNumTy ty, CPS.P.INT ty, cases, default)
+                  numSwitch(arg, CPS.P.INT ty, cases, default, NONE)
 		end
 	    | PL.WORDcon{ival, ty} => let
 		fun un_word (PL.WORDcon{ival, ...}, act) = (ival, act)
 		  | un_word _ = bug "un_int"
 		val cases = List.map un_word cases
 		in
-		  if Target.isTaggedIntSz ty
-		    then taggedNumSwitch(arg, tagWordKind, cases, default, NONE)
-		    else boxedNumSwitch(arg, boxNumTy ty, CPS.P.UINT ty, cases, default)
+                  numSwitch(arg, CPS.P.UINT ty, cases, default, NONE)
 		end
 	    | PL.STRINGcon _ => stringSwitch(arg, cases, default)
 	    | PL.DATAcon((_, A.EXN _, _), _, _) => let
