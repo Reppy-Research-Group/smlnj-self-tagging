@@ -58,6 +58,7 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
     fun tagInt n = NUM{ival = n, ty = tt}
     fun tagInt' n = tagInt(IntInf.fromInt n)
     fun enumTag n = ENUM n
+    val unitVal = enumTag 0
     fun boxIntTy sz = NUMt(bt sz)
     fun boxInt (sz, i) = NUM{ival = i, ty = bt sz}
   (* address-sized words *)
@@ -416,7 +417,7 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
              | F.RECORD(FR.RK_VECTOR _, [], v, e) =>
                  bug "zero length vectors in convert"
              | F.RECORD(rk, [], v, e) => let
-                 val _ = newname(v, tagInt 0)
+                 val _ = newname(v, unitVal)
                  in
                    loop(e, c)
                  end
@@ -455,7 +456,7 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
                            val b = switch {
                                    arg = lpvar u, sign = sign,
                                    cases = map proc l,
-                                   default = APP(VAR df, [tagInt 0])
+                                   default = APP(VAR df, [unitVal])
                                  }
                            in case d
                                 of NONE => b
@@ -688,7 +689,7 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
                          | _ => bug "unexpected case in F.PRIMOP"
                      val vl = lpvars ul
                   in case map_primop p
-                      of PKS i => let val _ = newname(v, tagInt 0)
+                      of PKS i => let val _ = newname(v, unitVal)
                                    in SETTER(i, vl, loop(e,c))
                                   end
                        | PKA i => ARITH(i, vl, v, ct, loop(e,c))
