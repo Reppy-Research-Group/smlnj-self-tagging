@@ -25,11 +25,13 @@ datatype bool = datatype PrimTypes.bool
 val op o : ('b -> 'c) * ('a -> 'b) -> ('a -> 'c) = InlineT.compose
 
 local
-    structure Int = InlineT.Int
+    structure Int = InlineT.Int   (* the default int *)
+    structure I63 = InlineT.Int63
     structure I32 = InlineT.Int32
     structure I64 = InlineT.Int64
+    structure Word = InlineT.Word (* the default word *)
     structure W8 = InlineT.Word8
-    structure Word = InlineT.Word
+    structure W63 = InlineT.Word63
     structure W32 = InlineT.Word32
     structure W64 = InlineT.Word64
 (* REAL32: add R32 *)
@@ -61,20 +63,20 @@ local
     fun stringge (a, b) = stringle (b, a)
 in
 overload ~ :   ('a -> 'a)
-   as  Int.~ and I32.~ and I64.~ and CII.~
-   and Word.~ and W8.~ and W32.~ and W64.~
+   as  I63.~ and I32.~ and I64.~ and CII.~
+   and W63.~ and W8.~ and W32.~ and W64.~
    and R64.~
 overload + :   ('a * 'a -> 'a)
-  as  Int.+ and I32.+ and I64.+ and CII.+
-  and Word.+ and W8.+ and W32.+ and W64.+
+  as  I63.+ and I32.+ and I64.+ and CII.+
+  and W63.+ and W8.+ and W32.+ and W64.+
   and R64.+
 overload - :   ('a * 'a -> 'a)
-  as  Int.- and I32.- and I64.- and CII.-
-  and Word.- and W8.- and W32.- and W64.-
+  as  I63.- and I32.- and I64.- and CII.-
+  and W63.- and W8.- and W32.- and W64.-
   and R64.-
 overload * :   ('a * 'a -> 'a)
-  as  Int.* and I32.* and I64.* and CII.*
-  and Word.* and W8.* and W32.* and W64.*
+  as  I63.* and I32.* and I64.* and CII.*
+  and W63.* and W8.* and W32.* and W64.*
   and R64.*
 (*
 overload / : ('a * 'a -> 'a)
@@ -82,37 +84,37 @@ overload / : ('a * 'a -> 'a)
 *)
 val op / = R64./		(* temporary hack around overloading bug *)
 overload div : ('a * 'a -> 'a)
-  as  Int.div and I32.div and I64.div and CII.div
-  and Word.div and W8.div and W32.div and W64.div
+  as  I63.div and I32.div and I64.div and CII.div
+  and W63.div and W8.div and W32.div and W64.div
 overload mod : ('a * 'a -> 'a)
-  as  Int.mod and I32.mod and I64.mod and CII.mod
-  and Word.mod and W8.mod and W32.mod and W64.mod
+  as  I63.mod and I32.mod and I64.mod and CII.mod
+  and W63.mod and W8.mod and W32.mod and W64.mod
 overload < :   ('a * 'a -> bool)
-  as  Int.< and I32.< and I64.< and CII.<
-  and Word.< and W8.< and W32.< and W64.<
+  as  I63.< and I32.< and I64.< and CII.<
+  and W63.< and W8.< and W32.< and W64.<
   and R64.<
   and InlineT.Char.<
   and stringlt
 overload <= :   ('a * 'a -> bool)
-  as  Int.<= and I32.<= and I64.<= and CII.<=
-  and Word.<= and W8.<= and W32.<= and W64.<=
+  as  I63.<= and I32.<= and I64.<= and CII.<=
+  and W63.<= and W8.<= and W32.<= and W64.<=
   and R64.<=
   and InlineT.Char.<=
   and stringle
 overload > :   ('a * 'a -> bool)
-  as  Int.> and I32.> and I64.> and CII.>
-  and Word.> and W8.> and W32.> and W64.>
+  as  I63.> and I32.> and I64.> and CII.>
+  and W63.> and W8.> and W32.> and W64.>
   and R64.>
   and InlineT.Char.>
   and stringgt
 overload >= :   ('a * 'a -> bool)
-  as  Int.>= and I32.>= and I64.>= and CII.>=
-  and Word.>= and W8.>= and W32.>= and W64.>=
+  as  I63.>= and I32.>= and I64.>= and CII.>=
+  and W63.>= and W8.>= and W32.>= and W64.>=
   and R64.>=
   and InlineT.Char.>=
   and stringge
 overload abs : ('a -> 'a)
-  as Int.abs and I32.abs and I64.abs and CII.abs and R64.abs
+  as I63.abs and I32.abs and I64.abs and CII.abs and R64.abs
 
 type unit = PrimTypes.unit
 type exn = PrimTypes.exn
