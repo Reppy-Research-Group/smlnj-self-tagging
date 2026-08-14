@@ -135,9 +135,11 @@ C.NUMt{sz=sz}
     fun getDescriptor obj =
 	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num'(~ws)])
 
-  (* get length field of a heap object as tagged integer *)
+  (* get length field of a heap object as a native integer *)
+    (* fun getObjLength obj = *)
+	  (* orTag (pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth - 0w1)])) *)
     fun getObjLength obj =
-	  orTag (pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth - 0w1)]))
+	  pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth)])
 
   (* get the data pointer of a sequence (vector, array, string, ...) *)
     fun getSeqData obj = select(0, obj)
