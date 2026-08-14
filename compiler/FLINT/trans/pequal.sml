@@ -249,8 +249,8 @@ structure PEqual : PEQUAL =
 	  fun numKind tyc =
 		if      TU.equalTycon(tyc, BT.int31Tycon)   then SOME(PO.INT 31)
 		else if TU.equalTycon(tyc, BT.word31Tycon)  then SOME(PO.UINT 31)
-		else if TU.equalTycon(tyc, BT.word8Tycon)   then SOME(PO.UINT 63)  (* DEFAULT64: could be 8? could be 64? *)
-		else if TU.equalTycon(tyc, BT.charTycon)    then SOME(PO.INT 63)
+		else if TU.equalTycon(tyc, BT.word8Tycon)   then SOME(PO.UINT Target.defaultIntSz)  (* DEFAULT64: could be 8? could be 64? *)
+		else if TU.equalTycon(tyc, BT.charTycon)    then SOME(PO.INT Target.defaultIntSz) (* DEFAULT64: char? *)
 		else if TU.equalTycon(tyc, BT.int32Tycon)   then SOME(PO.INT 32)
 		else if TU.equalTycon(tyc, BT.word32Tycon)  then SOME(PO.UINT 32)
 		else if TU.equalTycon(tyc, BT.int63Tycon)   then SOME(PO.INT 63)

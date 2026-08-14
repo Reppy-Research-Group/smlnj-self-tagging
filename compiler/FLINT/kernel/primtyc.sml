@@ -169,8 +169,11 @@ structure PrimTyc :> PRIM_TYC =
   (* return the FLINT primitive type for a given size of int or word.
    * Note that we use the default tagged integer type to represent any numeric
    * type of smaller precision.
+   * DEFAULT64: this is going to be an issue. Because the wrapping code in CPS
+   * will not know that the range is smaller.
    *)
-    fun numPrim n = PT_NUM(Int.max (n, Target.defaultTaggedIntSz))
+    fun numPrim n = PT_NUM(Int.max (n, Target.defaultIntSz))
+    (* fun numPrim n = PT_NUM n *)
 
   (* mapping from Types.tycon to primtycs *)
     val primTycons = [
