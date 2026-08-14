@@ -95,9 +95,12 @@ structure ContractPrim : sig
     (* integer types/values *)
     local
       val tt = {sz = Target.defaultTaggedIntSz, tag = true}
+      val dt = {sz = Target.defaultIntSz, tag = Target.isTaggedIntSz Target.defaultIntSz }
     in
     fun tagInt' n = NUM{ival = n, ty = tt}
     fun tagInt n = tagInt'(IntInf.fromInt n)
+    fun defaultInt' n = NUM{ival = n, ty = dt }
+    fun defaultInt n = defaultInt'(IntInf.fromInt n)
     end
 
   (* get the size of an integer operation *)
@@ -140,7 +143,7 @@ structure ContractPrim : sig
    * Eventually, we might generalize this to non-power-of-2 constants.
    *)
     fun mulByConst (sz, v, ival) = (case log2 ival
-           of SOME k => Pure(lshift sz, [v, tagInt k])
+           of SOME k => Pure(lshift sz, [v, defaultInt k])
             | NONE => None
           (* end case *))
 
@@ -186,7 +189,7 @@ structure ContractPrim : sig
             | (P.IARITH{oper=P.IDIV, sz}, v :: NUM{ival= ~1, ...} :: _) =>
                 Arith(P.IARITH{oper=P.INEG, sz=sz}, [v])
             | (P.IARITH{oper=P.IDIV, sz}, v :: NUM{ival, ...} :: _) => (case log2 ival
-                 of SOME k => Pure(rshift sz, [v, tagInt k])
+                 of SOME k => Pure(rshift sz, [v, defaultInt k])
                   | NONE => None
                 (* end case *))
             (***** IMOD *****)
@@ -336,7 +339,7 @@ structure ContractPrim : sig
                 Val(NUM{ival = CA.uDiv(sz, #ival i, #ival j), ty = #ty i})
             | (P.PURE_ARITH{oper=P.QUOT, kind=P.UINT sz}, v :: NUM{ival, ...} :: _) => (
                 case log2 ival
-                 of SOME k => Pure(rshiftl sz, [v, tagInt k])
+                 of SOME k => Pure(rshiftl sz, [v, defaultInt k])
                   | NONE => None
                 (* end case *))
             (***** REM *****)
@@ -408,7 +411,7 @@ structure ContractPrim : sig
                 val n = ival mod sz'
                 in
                   if (n = 0) then Val v
-                  else if (sz' <> n) then Pure(p, [v, tagInt' n])
+                  else if (sz' <> n) then Pure(p, [v, defaultInt' n])
                   else None
                 end
             (***** ROTR *****)
@@ -420,7 +423,7 @@ structure ContractPrim : sig
                 val n = ival mod sz'
                 in
                   if (n = 0) then Val v
-                  else if (sz' <> n) then Pure(p, [v, tagInt' n])
+                  else if (sz' <> n) then Pure(p, [v, defaultInt' n])
                   else None
                 end
             (***** PURE_NUMSUBSCRIPT *****)
@@ -533,7 +536,7 @@ structure ContractPrim : sig
                   | _ => None
                 (* end case *))
             (***** Other primops *****)
-            | (P.LENGTH, [STRING s]) => Val(tagInt(size s))
+            | (P.LENGTH, [STRING s]) => Val(defaultInt(size s))
             | (P.INT_TO_REAL{to, ...}, [NUM{ival, ...}]) =>
                 (* NOTE: this conversion might lose precision *)
                 Val(REAL{rval = RealLit.fromInt ival, ty=to})
