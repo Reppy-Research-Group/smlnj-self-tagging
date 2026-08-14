@@ -49,10 +49,10 @@ functor CPStoCFGFn (MS : MACH_SPEC) : sig
     val addrTy = MS.addressBitWidth	(* naturalsize of address arithmetic *)
 
   (* return true if integers of `sz` bits are represented as tagged values *)
-    fun isTaggedInt sz = (sz < Target.mlValueSz)
+    fun isTaggedInt sz = Target.isTaggedIntSz sz
 
   (* return true if integers of `sz` bits are represented as native values *)
-    fun isNativeInt sz = (sz = Target.mlValueSz)
+    fun isNativeInt sz = not (Target.isTaggedIntSz sz)
 
   (* normalize an integer size to a native machine-size *)
     fun normSz sz = if isTaggedInt sz then ity else sz
@@ -134,9 +134,11 @@ C.NUMt{sz=sz}
     fun getDescriptor obj =
 	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num'(~ws)])
 
-  (* get length field of a heap object as tagged integer *)
+  (* get length field of a heap object as a native integer *)
+    (* fun getObjLength obj = *)
+	  (* orTag (pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth - 0w1)])) *)
     fun getObjLength obj =
-	  orTag (pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth - 0w1)]))
+	  pureOp (TP.LSHR, ity, [getDescriptor obj, w2Num(D.tagWidth)])
 
   (* get the data pointer of a sequence (vector, array, string, ...) *)
     fun getSeqData obj = select(0, obj)
@@ -208,7 +210,7 @@ C.NUMt{sz=sz}
 		      val dataP = LV.mkLvar()
 		      in
 			allocRecord (dataDesc, flds, dataP,
-			  C.ALLOC(record D.desc_polyvec, [var dataP, mlInt len], x,
+			  C.ALLOC(record D.desc_polyvec, [var dataP, mlInt len], x, (* DEFAULT64: Length is tagged *)
 			    bindVarIn(x, k)))
 		      end
 (* REAL32: FIXME *)
@@ -247,7 +249,7 @@ C.NUMt{sz=sz}
 		      end
 		  | FIX _ => error ["unexpected FIX"]
 		  | SWITCH(v, _, cases) =>
-		      C.SWITCH(untagSigned v, List.map genE cases)
+		      C.SWITCH(genV v, List.map genE cases)
 		  | BRANCH(test, vs, _, k1, k2) =>
 		      genBranch (test, vs, genE k1, genE k2)
 		  | SETTER(P.RAWUPDATE cty, [v, i, w], k) =>
@@ -326,7 +328,7 @@ C.NUMt{sz=sz}
 				  num (D.makeDesc(ival, D.tag_special))
 			      | _ => (* desc = (i << tagWidth) | desc_special *)
 				pureOp (TP.ORB, ity, [
-				    pureOp (TP.SHL, ity, [untagSigned i, w2Num D.tagWidth]),
+				    pureOp (TP.SHL, ity, [genV i, w2Num D.tagWidth]),
 				    num D.desc_special
 				  ])
 			    (* end case *))
@@ -428,8 +430,9 @@ C.NUMt{sz=sz}
 		 of (P.NUMUPDATE{kind}, [arr, ix, v]) => let
 		      fun set (kind, sz, arg) = C.SETTER(
 			    TP.RAW_UPDATE{kind = kind, sz = sz},
-			    [getSeqData(genV arr), untagSigned ix, arg],
+			    [getSeqData(genV arr), genV ix, arg],
 			    k)
+                      (* DEFAULT64: check this *)
 		      fun coerceInt (sz, signed) = if (sz = defaultTaggedIntSz) orelse (sz = ity)
 			    (* IntArray.array will store values in tagged form *)
 			      then genV v
@@ -445,11 +448,11 @@ C.NUMt{sz=sz}
 		      end
 		  | (P.UNBOXEDUPDATE, [arr, ix, v]) =>
 		      C.SETTER(TP.UNBOXED_UPDATE,
-			[getSeqData(genV arr), untagSigned ix, genV v],
+			[getSeqData(genV arr), genV ix, genV v],
 			k)
 		  | (P.UPDATE, [arr, ix, v]) =>
 		      C.SETTER(TP.UPDATE,
-			[getSeqData(genV arr), untagSigned ix, genV v],
+			[getSeqData(genV arr), genV ix, genV v],
 			k)
 		  | (P.UNBOXEDASSIGN, [r, v]) =>
 		      C.SETTER(TP.UNBOXED_ASSIGN, [genV r, genV v], k)
@@ -467,10 +470,10 @@ C.NUMt{sz=sz}
 			      k)
 		      in
 			case i
-			 of NUM{ty={tag=true, ...}, ival} =>
+			 of NUM{ty={tag=_, ...}, ival} =>
 			      set (num (D.makeDesc(ival, D.tag_special)))
 			  | _ => set (pureOp(TP.ORB, ity, [
-				pureOp(TP.SHL, ity, [untagSigned v, w2Num D.tagWidth]),
+				pureOp(TP.SHL, ity, [genV i, w2Num D.tagWidth]),
 				num D.desc_special
 			      ]))
 			(* end case *)
@@ -486,7 +489,7 @@ C.NUMt{sz=sz}
 		 of (P.DEREF, _) => looker(TP.DEREF, List.map genV args)
 		  | (P.SUBSCRIPT, [arr, ix]) =>
 		      looker(TP.SUBSCRIPT, [
-			  select(0, genV arr), untagSigned ix
+			  select(0, genV arr), genV ix
 			])
 		  | (P.NUMSUBSCRIPT{kind=P.INT sz}, [arr, ix]) =>
 		      genRawIntSubscript (sz, arr, ix)
@@ -508,9 +511,9 @@ C.NUMt{sz=sz}
 			then genPureTagged (oper, true, sz, vs)
 			else let
                           fun binOp (rator, a, b) = pureOp (rator, sz, [genV a, genV b])
-                        (* note that the shift amount is always a tagged word value *)
+                        (* note that the shift amount is always a native word value *)
                           fun shiftOp (rator, a, b) =
-                                pureOp (rator, sz, [genV a, untagUnsigned b])
+                                pureOp (rator, sz, [genV a, genV b])
                           in
                             case (oper, vs)
                              of (P.NEG, [v]) => pureOp (TP.SUB, sz, [zero sz, genV v])
@@ -533,9 +536,9 @@ C.NUMt{sz=sz}
 			then genPureTagged (oper, false, sz, vs)
 			else let
                           fun binOp (rator, a, b) = pureOp (rator, sz, [genV a, genV b])
-                        (* note that the shift amount is always a tagged word value *)
+                        (* note that the shift amount is always a native word value *)
                           fun shiftOp (rator, a, b) =
-                                pureOp (rator, sz, [genV a, untagUnsigned b])
+                                pureOp (rator, sz, [genV a, genV b])
                           in
                             case (oper, vs)
                              of (P.ADD, [v1, v2]) => binOp (TP.ADD, v1, v2)
@@ -551,9 +554,9 @@ C.NUMt{sz=sz}
                               | (P.XORB, [v1, v2]) => binOp (TP.XORB, v1, v2)
                               | (P.ANDB, [v1, v2]) => binOp (TP.ANDB, v1, v2)
                               | (P.NOTB, [v]) => pureOp (TP.XORB, sz, [genV v, allOnes sz])
-                              | (P.CNTPOP, [v]) => tag (pureOp (TP.CNTPOP, sz, [genV v]))
-                              | (P.CNTLZ, [v]) => tag (pureOp (TP.CNTLZ, sz, [genV v]))
-                              | (P.CNTTZ, [v]) => tag (pureOp (TP.CNTTZ, sz, [genV v]))
+                              | (P.CNTPOP, [v]) => pureOp (TP.CNTPOP, sz, [genV v])
+                              | (P.CNTLZ, [v]) => pureOp (TP.CNTLZ, sz, [genV v])
+                              | (P.CNTTZ, [v]) => pureOp (TP.CNTTZ, sz, [genV v])
                               | (P.ROTL, [v1, v2]) => shiftOp (TP.ROTL, v1, v2)
                               | (P.ROTR, [v1, v2]) => shiftOp (TP.ROTR, v1, v2)
                               | _ => error ["genPure: ", PPCps.pureToString p]
@@ -576,8 +579,8 @@ C.NUMt{sz=sz}
 		      genRawWordSubscript (sz, v1, v2)
 		  | (P.PURE_NUMSUBSCRIPT{kind=P.FLOAT sz}, [v1, v2]) =>
 		      genRawSubscript (TP.FLT, sz, v1, v2)
-		  | (P.LENGTH, [v]) => getSeqLen (genV v)
-		  | (P.OBJLENGTH, [v]) => getObjLength (genV v)
+		  | (P.LENGTH, [v]) => untag (false, getSeqLen (genV v)) (* DEFAULT64: assume length is tagged *)
+		  | (P.OBJLENGTH, [v]) => untag (false, getObjLength (genV v)) (* DEFAULT64: assume length is tagged *)
 		  | (P.COPY{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
@@ -643,7 +646,7 @@ C.NUMt{sz=sz}
 		  | (P.SUBSCRIPTV, [v1, v2]) =>
 		      pure(TP.PURE_SUBSCRIPT, [
 			  getSeqData (genV v1),
-			  untagSigned v2
+			  genV v2
 			])
 		  | (P.GETTAG, [v]) =>
 		      toMLWord (pureOp (TP.ANDB, ity, [
@@ -660,14 +663,14 @@ C.NUMt{sz=sz}
 		  | (P.UNWRAP(P.FLOAT sz), [v]) =>
 		      looker(TP.RAW_LOAD{sz=sz, kind=TP.FLT}, [genV v, zero ity])
 		  | (P.GETSEQDATA, [v]) => getSeqData (genV v)
-		  | (P.RECSUBSCRIPT, [v1, NUM{ty={tag=true, ...}, ival}]) =>
+		  | (P.RECSUBSCRIPT, [v1, NUM{ty={tag=_, ...}, ival}]) =>
 		      select(IntInf.toInt ival, genV v1)
 		  | (P.RECSUBSCRIPT, [v1, v2]) =>
-		      pure(TP.PURE_SUBSCRIPT, [genV v1, untagSigned v2])
+		      pure(TP.PURE_SUBSCRIPT, [genV v1, genV v2])
 		  | (P.RAW64SUBSCRIPT, [v1, v2]) =>
 (* REAL32: FIXME *)
 		      pure(TP.PURE_RAW_SUBSCRIPT{kind=TP.FLT, sz=64},
-			[genV v1, untagSigned v2])
+			[genV v1, genV v2])
 		  | _ => error["genPure: ", PPCps.pureToString p]
 		(* end case *))
 	(***** BRANCH *****)
@@ -714,7 +717,7 @@ C.NUMt{sz=sz}
 	(* subscript from packed numeric vector *)
 	  and genRawSubscript (kind, sz, vec, idx) =
 		pure(TP.PURE_RAW_SUBSCRIPT{kind=kind, sz=sz}, [
-		    getSeqData(genV vec), untagSigned idx
+		    getSeqData(genV vec), genV idx
 		  ])
 (* FIXME: for some reason, `INT 8` has been used for word8/char vectors; we
  * keep it around for now to support porting, but it really should be
@@ -739,12 +742,14 @@ C.NUMt{sz=sz}
 		(* for default-size ints, we use the native size subscript *)
 		  then toMLWord (genRawSubscript (TP.INT, ity, vec, idx))
 		  else genRawSubscript (TP.INT, sz, vec, idx)
+          and untag (true, e) = pureOp (TP.ASHR, ity, [e, one])
+            | untag (false, e) = pureOp (TP.LSHR, ity, [e, one])
 	  and untagSigned (NUM{ty={tag=true, ...}, ival, ...}) = num ival
 	    | untagSigned (NUM _) = error["unexpected untagged integer"]
-	    | untagSigned v = pureOp (TP.ASHR, ity, [genV v, one])
+	    | untagSigned v = untag (true, genV v)
 	  and untagUnsigned (NUM{ty={tag=true, ...}, ival, ...}) = num ival
 	    | untagUnsigned (NUM _) = error["unexpected untagged integer"]
-	    | untagUnsigned v = pureOp(TP.LSHR, ity, [genV v, one])
+	    | untagUnsigned v = untag (false, genV v)
 	  and trunc (sz, _, NUM{ival, ...}) = C.NUM{iv=ival, sz=sz}
 	    | trunc (sz, true, v) = pure(TP.TRUNC{from=ity, to=sz}, [untagSigned v])
 	    | trunc (sz, false, v) = pure(TP.TRUNC{from=ity, to=sz}, [untagUnsigned v])
