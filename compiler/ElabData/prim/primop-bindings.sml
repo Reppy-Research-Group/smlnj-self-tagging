@@ -161,7 +161,7 @@ structure PrimopBindings : sig
 	    mk("cnt_leading_ones", w_i, P.INLINE(InlP.CNTLO sz)) :-:
 	    mk("cnt_leading_zeros", w_i, P.INLINE(InlP.CNTLZ sz)) :-:
 	    mk("cnt_trailing_ones", w_i, P.INLINE(InlP.CNTTO sz)) :-:
-	    mk("cnt_trailing_zeros", w_i, P.INLINE(InlP.CNTLZ sz)) :-:
+	    mk("cnt_trailing_zeros", w_i, P.INLINE(InlP.CNTTZ sz)) :-:
             mk("is_pow2", w_b, P.PRIM(CP.IS_POW2 sz)) :-:
             mk("ceil_log2", ar(wty, BT.defaultWordTy), P.INLINE(InlP.CEIL_LOG2 sz)) :-:
 	    shift("rotl", P.PURE{oper=PureP.ROTL, kind=nk}) :-:
@@ -515,7 +515,7 @@ structure PrimopBindings : sig
   (* Char operations *)
     val prims = let
 	  val cc_b = ar(tup[BT.charTy, BT.charTy], BT.boolTy)
-	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT 63})
+	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT 8})
 	  in
 	    prims :-:
 	    cmp("lt", CmpP.LT) :-:
