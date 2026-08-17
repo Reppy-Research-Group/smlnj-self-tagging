@@ -171,7 +171,7 @@ structure InlineT =
     structure Int63 =
       struct
 	val toInt : int63 -> int64		= InLine.int63_to_int64
-	val fromInt : int63 -> int63	= InLine.int64_to_int63
+	val fromInt : int64 -> int63	= InLine.int64_to_int63
 	val toLarge			= InLine.int63_to_intinf
 	val fromLarge			= InLine.intinf_to_int63
 
@@ -419,8 +419,8 @@ structure InlineT =
 	val toLarge : word64 -> word64		 = InLine.inl_identity
 	val toLargeX : word64 -> word64		 = InLine.inl_identity
 	val fromLarge : word64 -> word64	 = InLine.inl_identity
-	val toInt : word64 -> int63		 = InLine.copy_word64_to_int64
-	val toIntX : word64 -> int63		 = InLine.copy_word64_to_int64
+	val toInt : word64 -> int64		 = InLine.copy_word64_to_int64
+	val toIntX : word64 -> int64		 = InLine.copy_word64_to_int64
 	val fromInt : int -> word64		 = InLine.int64_to_word64
 	val toLargeInt : word64 -> intinf	 = InLine.unsigned_word64_to_intinf
 	val toLargeIntX : word64 -> intinf	 = InLine.signed_word64_to_intinf
