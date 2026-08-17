@@ -94,13 +94,29 @@ structure InvokeGC : sig
 	    oper = P.RAW_SELECT{kind=nk, sz=sz, offset=n},
 	    args = [rr]
 	  }
+    fun extend (signed, from, to, arg) =
+	  if (from = to)
+	    then arg
+	    else C.PURE{
+	      oper = P.EXTEND{signed=signed, from=from, to=to},
+	      args = [arg]
+	    }
+    fun trunc (from, to, arg) =
+	  if (from = to)
+	    then arg
+	    else C.PURE{
+	      oper = P.TRUNC{from=from, to=to},
+	      args = [arg]
+	    }
+    fun rawStoreSz (P.INT, sz) = if (sz < 32) then 32 else sz
+      | rawStoreSz (P.FLT, sz) = sz
 
   (* representation of what a GC root holds *)
     datatype root
       = Unit			(* initialized to "()" *)
       | Boxed of int		(* boxed live value with index *)
       | Record of root list	(* elements are Param or Raw only *)
-      | Raw of (int * P.numkind) list * (int * P.numkind) list
+      | Raw of (int * P.numkind * int) list * (int * P.numkind * int) list
 
 (* DEBUG
 fun roots2s roots = concat["[", String.concatWithMap "," root2s roots, "]"]
@@ -108,10 +124,10 @@ and root2s Unit = "()"
   | root2s (Boxed i) = "param" ^ Int.toString i
   | root2s (Record roots) = roots2s roots
   | root2s (Raw(raw32, raw64)) = let
-      fun toS sz (ix, nk) = concat[
+      fun toS (ix, nk, sz) = concat[
 	      "param", Int.toString ix, ":", PPCfg.numkindToString(nk, sz)
 	    ]
-      val flds = List.map (toS 32) raw32 @ List.map (toS 64) raw64
+      val flds = List.map toS raw32 @ List.map toS raw64
       in
 	concat ["<|", String.concatWith "," flds, "|>"]
       end
@@ -127,11 +143,17 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
    * layout.
    *)
     fun assignRoots (isCont, params) = let
-	  fun split (ix, {name, ty} :: params, boxed, raw32, raw64) = let
-		fun doRaw (kind, 32) =
-		      split (ix+1, params, boxed, (ix, kind)::raw32, raw64)
-		  | doRaw (kind, (64 | 16 | 8)) =
-		      split (ix+1, params, boxed, raw32, (ix, kind)::raw64)
+	    fun split (ix, {name, ty} :: params, boxed, raw32, raw64) = let
+		fun doRaw (P.INT, sz) =
+		      if (sz <= 32)
+			then split (ix+1, params, boxed, (ix, P.INT, sz)::raw32, raw64)
+		      else if (sz = 64)
+			then split (ix+1, params, boxed, raw32, (ix, P.INT, sz)::raw64)
+		      else error ["split: unexpected raw type ", CFGUtil.tyToString ty]
+		  | doRaw (P.FLT, 32) =
+		      split (ix+1, params, boxed, (ix, P.FLT, 32)::raw32, raw64)
+		  | doRaw (P.FLT, 64) =
+		      split (ix+1, params, boxed, raw32, (ix, P.FLT, 64)::raw64)
 		  | doRaw _ = error ["split: unexpected raw type ", CFGUtil.tyToString ty]
 		in
 		  case ty
@@ -217,12 +239,20 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
 	  and unpackRaw (rExp, raw32, raw64, k) = let
 		fun unpack tplV = let
 		      fun unpack32 (offset, []) = unpack64 (align64 offset, raw64)
-			| unpack32 (offset, (ix, nk)::r) = (
-			    setResult (ix, rawSelect (nk, 32, offset, tplV));
-			    unpack32 (offset+4, r))
+			| unpack32 (offset, (ix, nk, sz)::r) = let
+			    val storeSz = rawStoreSz (nk, sz)
+			    val load = rawSelect (nk, storeSz, offset, tplV)
+			    val result = (case nk
+				   of P.INT => trunc (storeSz, sz, load)
+				    | P.FLT => load
+				  (* end case *))
+			    in
+			      setResult (ix, result);
+			      unpack32 (offset+4, r)
+			    end
 		      and unpack64 (_, []) = k()
-			| unpack64 (offset, (ix, nk)::r) = (
-			    setResult (ix, rawSelect (nk, 64, offset, tplV));
+			| unpack64 (offset, (ix, nk, sz)::r) = (
+			    setResult (ix, rawSelect (nk, sz, offset, tplV));
 			    unpack64 (offset+8, r))
 		      in
 			unpack32 (0, raw32)
@@ -280,10 +310,17 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
                         else raise Fail "32-bit systems are not supported"
 		val desc = D.makeDesc' (nWords, tag)
 		val (flds, args) = let
-		      fun get sz ((ix, nk), (flds, args)) =
-			    ({kind=nk, sz=sz}::flds, getLive ix :: args)
+		      fun get ((ix, nk, sz), (flds, args)) = let
+			    val storeSz = rawStoreSz (nk, sz)
+			    val arg = (case nk
+				   of P.INT => extend (false, sz, storeSz, getLive ix)
+				    | P.FLT => getLive ix
+				  (* end case *))
+			    in
+			      ({kind=nk, sz=storeSz}::flds, arg::args)
+			    end
 		      in
-			List.foldr (get 32) (List.foldr (get 64) ([], []) raw64) raw32
+			List.foldr get (List.foldr get ([], []) raw64) raw32
 		      end
 		val align = if (n64 > 0) then 8 else 4
 		in
