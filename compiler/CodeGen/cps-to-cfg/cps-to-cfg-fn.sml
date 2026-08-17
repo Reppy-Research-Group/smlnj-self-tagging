@@ -538,6 +538,10 @@ C.NUMt{sz=sz}
                         (* note that the shift amount is always a native word value *)
                           fun shiftOp (rator, a, b) =
                                 pureOp (rator, sz, [genV a, genV b])
+                          fun widen arg =
+                                if (sz < ity) then zExt(sz, ity, arg) else arg
+                          fun countOp (rator, v) =
+                                pureOp (rator, ity, [widen (genV v)])
                           in
                             case (oper, vs)
                              of (P.ADD, [v1, v2]) => binOp (TP.ADD, v1, v2)
@@ -553,9 +557,23 @@ C.NUMt{sz=sz}
                               | (P.XORB, [v1, v2]) => binOp (TP.XORB, v1, v2)
                               | (P.ANDB, [v1, v2]) => binOp (TP.ANDB, v1, v2)
                               | (P.NOTB, [v]) => pureOp (TP.XORB, sz, [genV v, allOnes sz])
-                              | (P.CNTPOP, [v]) => pureOp (TP.CNTPOP, sz, [genV v])
-                              | (P.CNTLZ, [v]) => pureOp (TP.CNTLZ, sz, [genV v])
-                              | (P.CNTTZ, [v]) => pureOp (TP.CNTTZ, sz, [genV v])
+                              | (P.CNTPOP, [v]) => countOp (TP.CNTPOP, v)
+                              | (P.CNTLZ, [v]) =>
+                                  if (sz < ity)
+                                    then pureOp (TP.SUB, ity, [
+                                        countOp (TP.CNTLZ, v),
+                                        num(IntInf.fromInt(ity - sz))
+                                      ])
+                                    else countOp (TP.CNTLZ, v)
+                              | (P.CNTTZ, [v]) =>
+                                  if (sz < ity)
+                                    then pureOp(TP.CNTTZ, ity, [
+                                        pureOp(TP.ORB, ity, [
+                                            num(IntInf.<<(1, Word.fromInt sz)),
+                                            widen (genV v)
+                                          ])
+                                      ])
+                                    else countOp (TP.CNTTZ, v)
                               | (P.ROTL, [v1, v2]) => shiftOp (TP.ROTL, v1, v2)
                               | (P.ROTR, [v1, v2]) => shiftOp (TP.ROTR, v1, v2)
                               | _ => error ["genPure: ", PPCps.pureToString p]
@@ -579,7 +597,7 @@ C.NUMt{sz=sz}
 		  | (P.PURE_NUMSUBSCRIPT{kind=P.FLOAT sz}, [v1, v2]) =>
 		      genRawSubscript (TP.FLT, sz, v1, v2)
 		  | (P.LENGTH, [v]) => untag (false, getSeqLen (genV v)) (* DEFAULT64: assume length is tagged *)
-		  | (P.OBJLENGTH, [v]) => untag (false, getObjLength (genV v)) (* DEFAULT64: assume length is tagged *)
+		  | (P.OBJLENGTH, [v]) => getObjLength (genV v)
 		  | (P.COPY{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
@@ -693,6 +711,8 @@ C.NUMt{sz=sz}
 			mkBr (TP.FCMP{oper=oper, sz=size})
 		    | (P.FSGN sz, _) => mkBr (TP.FSGN sz)
                     | (P.IS_POW2 sz, [v]) => let
+                        fun widen arg =
+                              if (sz < ity) then zeroExtend(sz, arg) else arg
                         fun branch (arg, cnt) = C.BRANCH(
                               TP.CMP{oper=P.EQL, signed=false, sz=ity},
                               [pureOp(TP.CNTPOP, ity, [arg]), cnt],
@@ -700,11 +720,11 @@ C.NUMt{sz=sz}
                         in
                           if isNativeInt sz
                             (* for native numbers, one bit set ==> power of two *)
-                            then branch (genV v, one)
+                            then branch (widen (genV v), one)
                           (* for tagged numbers, two bits set ==> power of two *)
                           else if (sz = defaultTaggedIntSz)
                             then branch (genV v, two)
-                            else branch (zeroExtend(sz, genV v), two)
+                          else branch (zeroExtend(sz, genV v), two)
                         end
 		    | (P.BOXED, [v]) => boxedTest (genV v, k1, k2)
 		    | (P.UNBOXED, [v]) => boxedTest (genV v, k2, k1)
