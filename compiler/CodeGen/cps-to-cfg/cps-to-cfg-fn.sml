@@ -472,7 +472,7 @@ C.NUMt{sz=sz}
 			 of NUM{ty={tag=_, ...}, ival} =>
 			      set (num (D.makeDesc(ival, D.tag_special)))
 			  | _ => set (pureOp(TP.ORB, ity, [
-				pureOp(TP.SHL, ity, [genV v, w2Num D.tagWidth]),
+				pureOp(TP.SHL, ity, [genV i, w2Num D.tagWidth]),
 				num D.desc_special
 			      ]))
 			(* end case *)
@@ -553,9 +553,9 @@ C.NUMt{sz=sz}
                               | (P.XORB, [v1, v2]) => binOp (TP.XORB, v1, v2)
                               | (P.ANDB, [v1, v2]) => binOp (TP.ANDB, v1, v2)
                               | (P.NOTB, [v]) => pureOp (TP.XORB, sz, [genV v, allOnes sz])
-                              | (P.CNTPOP, [v]) => tag (pureOp (TP.CNTPOP, sz, [genV v]))
-                              | (P.CNTLZ, [v]) => tag (pureOp (TP.CNTLZ, sz, [genV v]))
-                              | (P.CNTTZ, [v]) => tag (pureOp (TP.CNTTZ, sz, [genV v]))
+                              | (P.CNTPOP, [v]) => pureOp (TP.CNTPOP, sz, [genV v])
+                              | (P.CNTLZ, [v]) => pureOp (TP.CNTLZ, sz, [genV v])
+                              | (P.CNTTZ, [v]) => pureOp (TP.CNTTZ, sz, [genV v])
                               | (P.ROTL, [v1, v2]) => shiftOp (TP.ROTL, v1, v2)
                               | (P.ROTR, [v1, v2]) => shiftOp (TP.ROTR, v1, v2)
                               | _ => error ["genPure: ", PPCps.pureToString p]
