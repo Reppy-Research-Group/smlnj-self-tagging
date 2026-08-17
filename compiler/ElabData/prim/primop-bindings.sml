@@ -252,6 +252,13 @@ structure PrimopBindings : sig
 		  (wName ^ "_to_word63", wTo BT.word63Ty, uCopy(sz, 63)) :-:
 		  ("int63_to_" ^ iName, iFrom BT.int63Ty, sCopyChk(63, sz)) :-:
 		  ("word63_to_" ^ wName, wFrom BT.word63Ty, uCopy(63, sz))
+	  val prims = if (sz = 64)
+		then prims
+		else prims :-:
+                  (iName ^ "_to_int64", iTo BT.int64Ty, sCopyChk(sz, 64)) :-:
+		  (wName ^ "_to_word64", wTo BT.word64Ty, uCopy(sz, 64)) :-:
+		  ("int64_to_" ^ iName, iFrom BT.int64Ty, sCopyChk(64, sz)) :-:
+		  ("word64_to_" ^ wName, wFrom BT.word64Ty, uCopy(64, sz))
 	(* add conversions to/from large word type when sz <> large word size *)
 	  val prims = if (sz = largeWSz)
 		then prims
@@ -456,6 +463,10 @@ structure PrimopBindings : sig
 	    ("int63_to_word8", wFrom BT.int63Ty, sCopy(63, 8)) :-:
 	    ("unsigned_word8_to_int63", wTo BT.int63Ty, uCopyChk(8, 63)) :-:
 	    ("signed_word8_to_int63", wTo BT.int63Ty, sCopyChk(8, 63)) :-:
+	  (* word type to/from int64 type *)
+	    ("int64_to_word8", wFrom BT.int64Ty, sCopy(64, 8)) :-:
+	    ("unsigned_word8_to_int64", wTo BT.int64Ty, uCopyChk(8, 64)) :-:
+	    ("signed_word8_to_int64", wTo BT.int64Ty, sCopyChk(8, 64)) :-:
 	  (* word type to/from int inf *)
 	    ("unsigned_word8_to_intinf", wTo BT.intinfTy, P.PRIM(CP.COPY_INF 8)) :-:
 	    ("signed_word8_to_intinf", wTo BT.intinfTy, P.PRIM(CP.EXTEND_INF 8)) :-:
