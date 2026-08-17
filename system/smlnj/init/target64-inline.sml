@@ -209,8 +209,8 @@ structure InlineT =
 
     structure Int64 =
       struct
-	val toInt = InLine.int64_to_int63
-	val fromInt = InLine.inl_identity
+	val toInt : int64 -> int = InLine.inl_identity
+	val fromInt : int -> int64 = InLine.inl_identity
 	val toLarge = InLine.int64_to_intinf
 	val fromLarge = InLine.intinf_to_int64
 
@@ -234,10 +234,16 @@ structure InlineT =
         val op >=   : int64 * int64 -> bool   = InLine.int64_ge
         val op =    : int64 * int64 -> bool   = InLine.int64_eql
         val op <>   : int64 * int64 -> bool   = InLine.int64_neq
+        val ltu     : int64 * int64 -> bool   = InLine.int64_ltu
+        val geu     : int64 * int64 -> bool   = InLine.int64_geu
 
         val min     : int64 * int64 -> int64  = InLine.int64_min
         val max     : int64 * int64 -> int64  = InLine.int64_max
         val abs     : int64 -> int64          = InLine.int64_abs
+
+      (* fast add/subtract that does not do overflow checking *)
+	val fast_add : int64 * int64 -> int64 = InLine.int64_unsafe_add
+	val fast_sub : int64 * int64 -> int64 = InLine.int64_unsafe_sub
       end
 
     structure IntInf =
@@ -425,6 +431,11 @@ structure InlineT =
 	val toLargeInt : word64 -> intinf	 = InLine.unsigned_word64_to_intinf
 	val toLargeIntX : word64 -> intinf	 = InLine.signed_word64_to_intinf
 	val fromLargeInt : intinf -> word64	 = InLine.intinf_to_word64
+
+      (* extra conversions *)
+	val toInt64 : word64 -> int64 = InLine.copy_word64_to_int64
+	val toWord64 : word64 -> word64 = InLine.inl_identity
+	val fromWord64 : word64 -> word64 = InLine.inl_identity
 
         val op + : word64 * word64 -> word64	 = InLine.word64_add
         val op - : word64 * word64 -> word64	 = InLine.word64_sub
