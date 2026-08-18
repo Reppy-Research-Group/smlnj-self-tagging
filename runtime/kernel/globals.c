@@ -23,7 +23,7 @@ typedef struct {
     ml_string_t id = {					\
 	DESC_string,					\
 	s,						\
-	INT_CtoML(sizeof(s)-1)				\
+	ENUM_CtoML(sizeof(s)-1)				\
     }
 
 /* Exceptions are identified by (string ref) values */
@@ -85,8 +85,8 @@ ml_val_t		RunTimeCompUnit = ML_unit;
 
 /* aggregate structures of length zero */
 const char _ML_string0_data[1]  = {0};
-ml_val_t _ML_string0[3]		= {DESC_string, PTR_CtoML(_ML_string0_data), INT_CtoML(0)};
-ml_val_t _ML_vector0[3]		= {DESC_polyvec, ML_unit, INT_CtoML(0)};
+ml_val_t _ML_string0[3]		= {DESC_string, PTR_CtoML(_ML_string0_data), ENUM_CtoML(0)};
+ml_val_t _ML_vector0[3]		= {DESC_polyvec, ML_unit, ENUM_CtoML(0)};
 
 ML_EXNID(_Div,"Div");           /* DEPRECATED */
 ML_EXNID(_Overflow,"Overflow");

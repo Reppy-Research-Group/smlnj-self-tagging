@@ -296,7 +296,7 @@ PVT void UncaughtExn (ml_val_t e)
     char        buf[1024];
 
     if (isUNBOXED(val))
-        sprintf (buf, "%ld\n", (long int) INT_MLtoC(val));
+        sprintf (buf, "%ld\n", (long int) ENUM_MLtoC(val));
     else {
         ml_val_t        desc = OBJ_DESC(val);
         if (desc == DESC_string)

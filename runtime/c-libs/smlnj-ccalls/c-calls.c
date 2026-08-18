@@ -36,7 +36,7 @@ ml_state_t	*visible_msp = NULL;
 
 #define MK_SOME(msp,v) recAlloc1(msp,v)
 
-#define NULLARY_DATACON  INT_CtoML(0)
+#define NULLARY_DATACON  ENUM_CtoML(0)
 
 /* this map must correspond to the layout of the type cdata and ctype
    datatypes defined in ML_FILES
@@ -1023,7 +1023,7 @@ handle_int:
 #endif
 	Die("word_CtoML: cannot yet handle type\n");
     }
-    REC_ALLOC2(msp,ret,INT_CtoML(tag),mlval);
+    REC_ALLOC2(msp,ret,ENUM_CtoML(tag),mlval);
     return ret;
 }
 
@@ -1043,11 +1043,11 @@ ml_val_t datumCtoML(ml_state_t *msp, char *type, Word_t p, ml_val_t *root)
     switch (*type) {
       case MLDOUBLE_CODE:
 	ret = double_CtoML(msp, *(double *)p);
-	REC_ALLOC2(msp,ret,INT_CtoML(MLDOUBLE_TAG),ret);
+	REC_ALLOC2(msp,ret,ENUM_CtoML(MLDOUBLE_TAG),ret);
 	break;
       case MLFLOAT_CODE:
 	ret = double_CtoML(msp, (double) (*(float *)p));
-	REC_ALLOC2(msp,ret,INT_CtoML(MLFLOAT_TAG),ret);
+	REC_ALLOC2(msp,ret,ENUM_CtoML(MLFLOAT_TAG),ret);
 	break;
       default: {
 	  Word_t *q = &p;
@@ -1146,12 +1146,12 @@ ml_val_t ml_c_call(ml_state_t *msp, ml_val_t arg)
     switch (*cret_type) {
       case MLDOUBLE_CODE:
 	ret = double_CtoML(msp,call_double_fn((double (*)())f,n_cargs,vals));
-	REC_ALLOC2(msp,ret,INT_CtoML(MLDOUBLE_TAG),ret);
+	REC_ALLOC2(msp,ret,ENUM_CtoML(MLDOUBLE_TAG),ret);
 	break;
       case MLFLOAT_CODE:
 	ret = double_CtoML(msp,
 			   (double) call_float_fn((float(*)())f,n_cargs,vals));
-	REC_ALLOC2(msp,ret,INT_CtoML(MLFLOAT_TAG),ret);
+	REC_ALLOC2(msp,ret,ENUM_CtoML(MLFLOAT_TAG),ret);
 	break;
       case MLCHAR_CODE: {
 	  Byte_t b = (Byte_t) call_word_fn(f,n_cargs,vals);
