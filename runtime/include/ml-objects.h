@@ -29,6 +29,18 @@
 #include "tags.h"
 #endif
 
+
+
+
+
+STATIC_INLINE ml_val_t ML_AllocInt64 (ml_state_t *msp, Int64_t n);
+#define INT_MLtoC(n)		(*PTR_MLtoC(Int64_t, n))
+#define INT_CtoML(n)		(ML_AllocInt64(msp, n))
+
+
+
+
+
 /* extract info from objects */
 #define OBJ_DESC(OBJ)		REC_SEL((OBJ), -1)
 #define OBJ_LEN(OBJ)		GET_LEN(OBJ_DESC(OBJ))
@@ -127,7 +139,10 @@ STATIC_INLINE ml_val_t ML_AllocSeqHdr (ml_state_t *msp, ml_val_t desc, ml_val_t 
     ml_val_t *p = msp->ml_allocPtr;
     p[0] = desc;
     p[1] = data;
-    p[2] = INT_CtoML(len);
+    p[2] = (ml_val_t)(intptr_t)(len * 2 + 1); /* DEFAULT64: manually tagging this */
+    if ((int64_t) len >= (1ll << 32)) {
+         Die("Seq too long: desc=%p, data=%p, len=%d\n", (void *)desc, (void *)data, len);
+    }
     return ML_Alloc(msp, 2);
 }
 STATIC_INLINE ml_val_t ML_AllocReal64 (ml_state_t *msp, double d)
@@ -310,7 +325,7 @@ typedef Unsigned64_t SysWord_t;
 /** ML lists **/
 #define LIST_hd(p)		REC_SEL(p, 0)
 #define LIST_tl(p)		REC_SEL(p, 1)
-#define LIST_nil		INT_CtoML(0)
+#define LIST_nil		ML_nil
 #define LIST_isNull(p)		((p) == LIST_nil)
 #define LIST_cons(msp, r, a, b)	REC_ALLOC2(msp, r, a, b)
 
@@ -319,7 +334,7 @@ typedef Unsigned64_t SysWord_t;
 #define ASSIGN(r, x)		(PTR_MLtoC(ml_val_t, r)[0] = (x))
 
 /** ML options **/
-#define OPTION_NONE             INT_CtoML(0)
+#define OPTION_NONE             ENUM_CtoML(0)
 #define OPTION_SOME(msp, r, a)  REC_ALLOC1(msp, r, a)
 #define OPTION_get(r)		REC_SEL(r, 0)
 

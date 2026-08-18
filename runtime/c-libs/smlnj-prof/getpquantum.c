@@ -14,6 +14,7 @@
  */
 ml_val_t _ml_Prof_getpquantum (ml_state_t *msp, ml_val_t arg)
 {
-    return INT_CtoML(PROFILE_QUANTUM_US);
+    // return INT_CtoML(PROFILE_QUANTUM_US);
+    return ML_unit;
 
 } /* end of _ml_Prof_getpquantum */

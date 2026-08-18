@@ -33,12 +33,13 @@
  */
 #define PTR_CAST(ty, p)		((ty)(p))
 
-#define INT_MLtoC(n)		(((Int_t)(n)) >> 1)
-#define INT_CtoML(n)		((ml_val_t)(Int_t)(2*(n) + 1))
+#define ENUM_MLtoC(n)           (((Int_t)(n)) >> 1)
+#define ENUM_CtoML(n)           ((ml_val_t)(Int_t)(2*(n) + 1))
+
 #define PTR_MLtoC(ty,p)		PTR_CAST(ty *, p)
 #define PTR_CtoML(p)		PTR_CAST(ml_val_t, p)
 #else
-#define INT_CtoML(n)		(((n)*2)+1)
+#define ENUM_CtoML(n)           (((n)*2)+1)
 #endif /* !_ASM_ */
 
 #ifndef _ASM_
@@ -65,10 +66,10 @@
 #endif /* !_ASM_ */
 
 /** Some basic ML values **/
-#define ML_unit			INT_CtoML(0)
-#define ML_false		INT_CtoML(0)
-#define ML_true			INT_CtoML(1)
-#define ML_nil			INT_CtoML(0)
+#define ML_unit			ENUM_CtoML(0)
+#define ML_false		ENUM_CtoML(0)
+#define ML_true			ENUM_CtoML(1)
+#define ML_nil			ENUM_CtoML(0)
 
 #endif /* !_ML_VALUES_ */
 

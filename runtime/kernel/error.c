@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "ml-base.h"
 
 extern FILE	*DebugF;
@@ -67,7 +68,7 @@ void Die (const char *fmt, ...)
     fprintf (stderr, "\n");
     va_end(ap);
 
-    Exit (1);
+    abort();
 
 } /* end of Die */
 
