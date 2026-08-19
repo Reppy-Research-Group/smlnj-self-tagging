@@ -249,7 +249,8 @@ C.NUMt{sz=sz}
 		      end
 		  | FIX _ => error ["unexpected FIX"]
 		  | SWITCH(v, _, cases) =>
-		      C.SWITCH(genV v, List.map genE cases)
+                      (* DEFAULT64: SWITCH only works on tagged integers for now *)
+		      C.SWITCH(untagSigned v, List.map genE cases)
 		  | BRANCH(test, vs, _, k1, k2) =>
 		      genBranch (test, vs, genE k1, genE k2)
 		  | SETTER(P.RAWUPDATE cty, [v, i, w], k) =>
@@ -432,17 +433,10 @@ C.NUMt{sz=sz}
 			    TP.RAW_UPDATE{kind = kind, sz = sz},
 			    [getSeqData(genV arr), genV ix, arg],
 			    k)
-                      (* DEFAULT64: check this *)
-		      fun coerceInt (sz, signed) = if (sz = defaultTaggedIntSz) orelse (sz = ity)
-			    (* IntArray.array will store values in tagged form *)
-			      then genV v
-			    else if (sz < defaultTaggedIntSz)
-			      then trunc (sz, signed, v)
-			      else error [" NUMUPDATE of unsupported size ", Int.toString sz]
 		      in
 			case kind
-			 of P.INT sz => set (TP.INT, sz, coerceInt (sz, true))
-			  | P.UINT sz => set (TP.INT, sz, coerceInt (sz, false))
+			 of P.INT sz => set (TP.INT, normSz sz, genV v)
+			  | P.UINT sz => set (TP.INT, normSz sz, genV v)
 			  | P.FLOAT sz => set (TP.FLT, sz, genV v)
 			(* end case *)
 		      end
@@ -667,10 +661,10 @@ C.NUMt{sz=sz}
 			  genV v2
 			])
 		  | (P.GETTAG, [v]) =>
-		      toMLWord (pureOp (TP.ANDB, ity, [
+		      pureOp (TP.ANDB, ity, [
 			  getDescriptor(genV v),
 			  num(D.powTagWidth-1)
-			]))
+			])
 		  | (P.CAST, [v]) => genV v
 		  | (P.GETCON, [v]) => select(0, genV v)
 		  | (P.GETEXN, [v]) => select(0, genV v)
@@ -753,25 +747,14 @@ C.NUMt{sz=sz}
  * keep it around for now to support porting, but it really should be
  * sign extending the result.
  *)
-	  and genRawIntSubscript (8, vec, idx) =
-                toMLWord (genRawSubscript (TP.INT, 8, vec, idx))
-(* NOTE: the following code doesn't ever get used, but will be necessary
- * if we add monomorphic array types of smaller integer sizes
- *)
-            | genRawIntSubscript (sz, vec, idx) =
-		if (sz < defaultTaggedIntSz)
-		  then toMLWord (signExtend (sz, genRawSubscript (TP.INT, sz, vec, idx)))
-		else if (sz = defaultTaggedIntSz)
-		(* for default-size ints, we use the native size subscript *)
-		  then toMLWord (genRawSubscript (TP.INT, ity, vec, idx))
-		  else genRawSubscript (TP.INT, sz, vec, idx)
+	  and genRawIntSubscript (sz, vec, idx) =
+                if isTaggedInt sz
+                  then genRawSubscript (TP.INT, ity, vec, idx)
+                  else genRawSubscript (TP.INT, sz, vec, idx)
 	  and genRawWordSubscript (sz, vec, idx) =
-		if (sz < defaultTaggedIntSz)
-		  then toMLWord (zeroExtend (sz, genRawSubscript (TP.INT, sz, vec, idx)))
-		else if (sz = defaultTaggedIntSz)
-		(* for default-size ints, we use the native size subscript *)
-		  then toMLWord (genRawSubscript (TP.INT, ity, vec, idx))
-		  else genRawSubscript (TP.INT, sz, vec, idx)
+		if isTaggedInt sz
+		  then genRawSubscript (TP.INT, ity, vec, idx)
+                  else genRawSubscript (TP.INT, sz, vec, idx)
           and untag (true, e) = pureOp (TP.ASHR, ity, [e, one])
             | untag (false, e) = pureOp (TP.LSHR, ity, [e, one])
 	  and untagSigned (NUM{ty={tag=true, ...}, ival, ...}) = num ival
