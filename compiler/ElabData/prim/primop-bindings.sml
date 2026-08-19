@@ -515,7 +515,7 @@ structure PrimopBindings : sig
   (* Char operations *)
     val prims = let
 	  val cc_b = ar(tup[BT.charTy, BT.charTy], BT.boolTy)
-	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT 63})
+	  fun cmp (name, p) = ("char_"^name, cc_b, P.CMP{oper=p, kind=P.UINT 8})
 	  in
 	    prims :-:
 	    cmp("lt", CmpP.LT) :-:
