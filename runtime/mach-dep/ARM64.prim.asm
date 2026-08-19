@@ -399,8 +399,9 @@ ALIGNED_ENTRY(array_a)
 	cmp	allocptr, limitptr
 	b.hi	L_array_gc               /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)      /* xtmp1 := length of array (tagged) */
-        asr     xtmp2, xtmp1, IM(1)      /* xtmp2 := (xtmp1 >> 1) -- untag length */
+        ldr     xtmp1, MEM(xarg, 0)      /* xtmp1 := boxed length of array */
+        ldr     xtmp1, MEM(xtmp1, 0)     /* xtmp1 := unwrap xtmp1 */
+        mov     xtmp2, xtmp1             /* xtmp2 := xtmp1 */
         cmp     xtmp2, IM(SMALL_OBJ_SZW)
         b.hi    L_array_large            /* if (xtmp2 > SMALL_OBJ_SZW) goto array_large */
 
@@ -422,6 +423,8 @@ L_array_lp:
         str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_polyarr */
         mov     xarg, allocptr                      /* arg = header object */
         str     xtmp3, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = data object */
+        lsl     xtmp1, xtmp1, IM(1)
+        add     xtmp1, xtmp1, IM(1)                 /* xtmp1 := xtmp1 * 2 + 1 */
         str     xtmp1, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = tagged length */
         CONTINUE
 
@@ -441,8 +444,8 @@ ALIGNED_ENTRY(create_v_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_v_gc                   /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)      	/* xtmp1 := tagged length */
-	asr	xtmp2, xtmp1, IM(1)		/* xtmp2 := untagged length */
+        ldr     xtmp2, MEM(xarg, 0)      	/* xtmp2 := untagged length */
+        ldr     xtmp2, MEM(xtmp2, 0)            /* xtmp2 := unwrap xtmp2 */
         cmp     xtmp2, IM(SMALL_OBJ_SZW)        /* if (xtmp2 > SMALL_OBJ_SZW) */
         b.hi    L_vector_large                  /*    then goto vector_large */
 
@@ -467,6 +470,8 @@ L_vector_lp_exit:
         str     xtmp3, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_polyvec */
         mov     xarg, allocptr                      /* arg = header object */
         str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = data object */
+        lsl     xtmp1, xtmp2, IM(1)
+        add     xtmp1, xtmp1, IM(1)                 /* xtmp1 = xtmp2 * 2 + 1 */
         str     xtmp1, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = tagged length */
         CONTINUE
 
@@ -486,26 +491,30 @@ ALIGNED_ENTRY(create_b_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_b_gc                   /* if (allocPtr > limitptr) then GC */
 
-        asr     xtmp1, xarg, IM(1)              /* tmp1 := untagged length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged byte length */
+        mov     xtmp4, xtmp1                    /* tmp4 := untagged byte length */
+
         add     xtmp1, xtmp1, IM(7)
         asr     xtmp1, xtmp1, IM(3)             /* tmp1 := length in words */
         cmp     xtmp1, IM(SMALL_OBJ_SZW)        /* if (xtmp1 > SMALL_OBJ_SZW) */
         b.hi    L_create_b_large                /*    then goto create_b_large */
 
-        /* build descriptor in tmp2 */
+        /* build raw data object (descriptor length is in words) */
         mov     wtmp2, IM(MAKE_TAG(DTAG_raw))
         orr     xtmp2, xtmp2, xtmp1, lsl IM(TAG_SHIFTW)
         str     xtmp2, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = descriptor */
         mov     xtmp3, allocptr                     /* tmp3 = data object */
         add     allocptr, allocptr, xtmp1, lsl IM(3) /* allocptr += length */
 
-        /* allocate header object */
-        mov     wtmp4, IM(DESC_word8arr)
-        str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_word8arr */
-        mov     xtmp1, allocptr                     /* xtmp1 = header object */
+        /* build bytearray header (length is in bytes) */
+        mov     wtmp2, IM(DESC_word8arr)
+        str     xtmp2, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_word8arr */
+        mov     xarg, allocptr                      /* xarg = header object */
         str     xtmp3, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = data object */
-        str     xarg, POSTINC(allocptr, WORD_SZB)   /* *allocptr++ = tagged length */
-        mov     xarg, xtmp1
+        lsl     xtmp4, xtmp4, IM(1)
+        add     xtmp4, xtmp4, IM(1)                 /* xtmp4 = xtmp4 * 2 + 1 */
+        str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = tagged length */
+
         CONTINUE
 
 L_create_b_large:                                   /* else (xtmp1 > SMALL_OBJ_SZW) */
@@ -525,13 +534,15 @@ ALIGNED_ENTRY(create_s_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_s_gc                   /* if (allocPtr > limitptr) then GC */
 
-        asr     xtmp1, xarg, IM(1)              /* tmp1 := untagged length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged byte length */
+        mov     xtmp4, xtmp1                    /* tmp4 := untagged byte length */
+
         add     xtmp1, xtmp1, IM(8)
         asr     xtmp1, xtmp1, IM(3)             /* tmp1 := length in words (incl. null) */
         cmp     xtmp1, IM(SMALL_OBJ_SZW)        /* if (xtmp1 > SMALL_OBJ_SZW) */
-        b.hi    L_create_b_large                /*    then goto create_b_large */
+        b.hi    L_create_s_large                /*    then goto create_s_large */
 
-        /* build descriptor in tmp2 */
+        /* raw data object */
         mov     wtmp2, IM(MAKE_TAG(DTAG_raw))
         orr     xtmp2, xtmp2, xtmp1, lsl IM(TAG_SHIFTW)
                                                 /* xtmp2 = (len << TAG_SHIFTW) | DTAG_raw */
@@ -541,12 +552,15 @@ ALIGNED_ENTRY(create_s_a)
         str     xzero, MEM(allocptr, -8)            /* zero out last word */
 
         /* allocate header object */
-        mov     wtmp4, IM(DESC_string)
-        str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_word8arr */
-        mov     xtmp1, allocptr                     /* xtmp1 = header object */
+        mov     wtmp2, IM(DESC_string)
+        str     xtmp2, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_word8arr */
+        mov     xarg, allocptr                      /* xarg = header object */
         str     xtmp3, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = data object */
-        str     xarg, POSTINC(allocptr, WORD_SZB)   /* *allocptr++ = tagged length */
-        mov     xarg, xtmp1
+
+        lsl     xtmp4, xtmp4, IM(1)
+        add     xtmp4, xtmp4, IM(1)                 /* xtmp4 = xtmp4 * 2 + 1 */
+        str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = tagged length */
+
         CONTINUE
 
 L_create_s_large:                                   /* else (xtmp1 > SMALL_OBJ_SZW) */
@@ -566,7 +580,7 @@ ALIGNED_ENTRY(create_r_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_r_gc                 /* if (allocPtr > limitptr) then GC */
 
-        asr     xtmp1, xarg, IM(1)              /* tmp1 := untagged length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged length */
         cmp     xtmp1, IM(SMALL_OBJ_SZW)        /* if (xtmp1 > SMALL_OBJ_SZW) */
         b.hi    L_create_r_large                /*    then goto create_r_large */
 
@@ -580,10 +594,12 @@ ALIGNED_ENTRY(create_r_a)
         /* allocate header object */
         mov     wtmp4, IM(DESC_real64arr)
         str     xtmp4, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = DESC_real64arr */
-        mov     xtmp1, allocptr                     /* xtmp1 = header object */
+        mov     xtmp2, allocptr                     /* xtmp2 = header object */
         str     xtmp3, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = data object */
-        str     xarg, POSTINC(allocptr, WORD_SZB)   /* *allocptr++ = tagged length */
-        mov     xarg, xtmp1
+        lsl     xtmp1, xtmp1, IM(1)
+        add     xtmp1, xtmp1, IM(1)                 /* xtmp1 = xtmp1 * 2 + 1 */
+        str     xtmp1, POSTINC(allocptr, WORD_SZB)  /* *allocptr++ = tagged length */
+        mov     xarg, xtmp2
         CONTINUE
 
 L_create_r_large:                                   /* else (xtmp1 > SMALL_OBJ_SZW) */
@@ -616,11 +632,25 @@ ALIGNED_ENTRY(logb_a)
  * It is the caller's responsibility to make sure arg is in range.
  */
 ALIGNED_ENTRY(floor_a)
+        cmp     allocptr, limitptr
+        b.hi    L_floor_gc
+
         ldr     d0, MEM(xarg, 0)
-        fcvtms  xtmp1, d0
-        mov     warg, IM(1)
-        bfi     xarg, xtmp1, IM(1), IM(63)  /* bit-field insert xtmp1 into xarg */
+        fcvtms  xtmp1, d0                  /* native integer result */
+
+        /* allocate one-word raw object */
+        mov     wtmp2, IM(MAKE_TAG(DTAG_raw))
+        orr     xtmp2, xtmp2, IM(1 << TAG_SHIFTW)
+        str     xtmp2, POSTINC(allocptr, WORD_SZB)
+
+        mov     xarg, allocptr             /* xarg = boxed integer */
+        str     xtmp1, POSTINC(allocptr, WORD_SZB)
+
         CONTINUE
+
+L_floor_gc:
+        bl      saveregs
+        b       CSYM(floor_a)
 
 #define SIGN_MASK       IM(0x8000000000000000)
 #define EXP_MASK        IM(0x7ff0000000000000)
@@ -631,7 +661,7 @@ ALIGNED_ENTRY(floor_a)
  */
 ALIGNED_ENTRY(scalb_a)
         ldr     xtmp1, MEM(xarg, 8)         /* xtmp1 := #2(arg) */
-        asr     xtmp1, xtmp1,IM(1)          /* xtmp1 := (xtmp1 >> 1) -- untag */
+        ldr     xtmp1, MEM(xtmp1, 0)        /* xtmp1 := unwrap xtmp1 */
         ldr     xarg, MEM(xarg, 0)          /* arg := #1(arg) -- ptr to boxed real */
         ldr     xtmp2, MEM(xarg, 0)         /* xtmp2 := bits(x) */
         ands    xtmp3, xtmp2, EXP_MASK      /* xmp3 := biased exponent */
