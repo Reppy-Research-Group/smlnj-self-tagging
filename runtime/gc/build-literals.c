@@ -616,9 +616,9 @@ ml_val_t BuildLiterals (ml_state_t *msp, Byte_t *code, int len)
 
 	  case INT:
 #ifdef DEBUG_LITERALS
-	    SayDebug("[%04d/%4d]: INT(%" PRINT ")\n", startPC, depth, arg.iArg);
+	    SayDebug("[%04d/%4d]: ENUM(%" PRINT ")\n", startPC, depth, arg.iArg);
 #endif
-	    PUSH (INT_CtoML(arg.iArg));
+	    PUSH (ENUM_CtoML(arg.iArg));
 	    break;
 
 #ifdef SIZE_32
