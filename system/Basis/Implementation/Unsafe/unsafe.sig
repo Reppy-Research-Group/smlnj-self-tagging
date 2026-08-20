@@ -112,4 +112,8 @@ signature UNSAFE =
 
     val sigHandler : ((int * int * unit Cont.cont) -> unit Cont.cont) ref
 
+    val dummy : 'a -> unit
+
+    val debug : string -> unit
+
   end;
