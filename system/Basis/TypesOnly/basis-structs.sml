@@ -9,12 +9,14 @@
 
 structure Int = struct type int = PrimTypes.int end
 structure Int32 = struct type int = PrimTypes.int32 end
+structure Int63 = struct type int = PrimTypes.int63 end
 structure Int64 = struct type int = PrimTypes.int64 end
 structure IntInf = struct type int = PrimTypes.intinf end
 
 structure Word = struct type word = PrimTypes.word end
 structure Word8 = struct type word = PrimTypes.word8 end
 structure Word32 = struct type word = PrimTypes.word32 end
+structure Word63 = struct type word = PrimTypes.word63 end
 structure Word64 = struct type word = PrimTypes.word64 end
 
 structure Real64 = struct type real = PrimTypes.real end
