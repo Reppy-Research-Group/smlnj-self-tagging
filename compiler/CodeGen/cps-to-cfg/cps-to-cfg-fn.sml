@@ -609,55 +609,71 @@ C.NUMt{sz=sz}
 		  | (P.COPY{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else
-                        let val raw =
-                              if isTaggedInt from then untagSigned v else genV v
-                        in  if from < to
-                              then zeroExtend(from, raw)
-                              else error ["genPure: ", PPCps.pureToString p]
-                        end
+		      else if from >= to
+                        then error ["genPure: ", PPCps.pureToString p]
+                      else
+                        (case (isTaggedInt from, isTaggedInt to)
+                           of (false, false) => zExt (from, to, genV v)
+                            | (true, false) =>
+                                (* a tagged number can only be widened to a full
+                                 * word *)
+                                if to = ity
+                                  then untagUnsigned v
+                                  else error ["genPure: ", PPCps.pureToString p]
+                            | (false, true) =>
+                                (* because `from < to`, the value fits *)
+                                tag (zeroExtend (from, genV v))
+                            | (true, true) =>
+                                (* DEFAULT64: assume there is only one tagged
+                                 * int representation *)
+                                genV v)
 		  | (P.EXTEND{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (from = defaultTaggedIntSz) andalso (to = ity)
-		      (* shift right by one preserves sign and nukes tag bit *)
-			then pureOp (TP.ASHR, ity, [genV v, one])
-		      else if (from < defaultTaggedIntSz)
-			then let
-(* QUESTION: do we need to zero-extend the argument to ity width? *)
-			(* shift left amount so that sign bit is leftmost bit *)
-			  val sa = IntInf.fromInt(defaultTaggedIntSz - from)
-			  val exp = pureOp (TP.SHL, ity, [genV v, num sa])
-			  in
-			    if isTaggedInt to
-			    (* note that result already has its tag *)
-			      then pureOp (TP.ASHR, ity, [exp, num sa])
-			    (* shift by one more bit to nuke the tag *)
-			      else pureOp (TP.ASHR, ity, [exp, num(sa+1)])
-			  end
-			else error ["genPure: ", PPCps.pureToString p]
+		      else if from >= to
+                        then error ["genPure: ", PPCps.pureToString p]
+                      else
+                        (case (isTaggedInt from, isTaggedInt to)
+                           of (false, false) => sExt (from, to, genV v)
+                            | (true, false) =>
+                                (* untagging preserves the sign *)
+                                if to = ity
+                                  then untagSigned v
+                                  else error ["genPure: ", PPCps.pureToString p]
+                            | (false, true) =>
+                                (* sign-extend then tag *)
+                                tag (signExtend (from, genV v))
+                            | (true, true) =>
+                                (* DEFAULT64: assume there is only one tagged
+                                 * int representation *)
+                                genV v)
 		  | (P.TRUNC{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (to = defaultTaggedIntSz) andalso (from = ity)
-			then orTag(pureOp(TP.SHL, ity, [genV v, one]))
-		      else if not (isTaggedInt to)
-			then pure(TP.TRUNC{from=from, to=to}, [genV v])
-		      else if isTaggedInt from
-			then let
-			(* we include the tag bit in the mask *)
-			  val mask = IntInf.<<(1, Word.fromInt(to+1)) - 1
-			  in
-			    pureOp(TP.ANDB, ity, [genV v, num mask])
-			  end
-			else let
-			  val mask = IntInf.<<(1, Word.fromInt to) - 1
-			  in
-			    addTag (pureOp (TP.SHL, ity, [
-				pureOp(TP.ANDB, ity, [genV v, num mask]),
-				one
-			      ]))
-			  end
+		      else if from <= to
+                        then error ["genPure: ", PPCps.pureToString p]
+                      else
+                        (case (isTaggedInt from, isTaggedInt to)
+                           of (false, false) =>
+                                pure(TP.TRUNC{from=from, to=to}, [genV v])
+                            | (true, false) =>
+                                pure(
+                                  TP.TRUNC{from=ity, to=to},
+                                  [untagUnsigned v])
+                            | (true, true) => let
+                                (* preserve the tag while discarding high-order
+                                 * bits *)
+                                val mask = IntInf.<<(1, Word.fromInt(to+1)) - 1
+                                in
+                                  pureOp(TP.ANDB, ity, [genV v, num mask])
+                                end
+                            | (false, true) => let
+                                (* truncate then tag *)
+                                val mask = IntInf.<<(1, Word.fromInt(to+1)) - 1
+                                in
+                                  tag (
+                                    pureOp(TP.ANDB, ity, [genV v, num mask]))
+                                end)
 		  | (P.INT_TO_REAL{from, to}, [v]) => let
 		      val e = if isTaggedInt from
 			    then untagSigned v
