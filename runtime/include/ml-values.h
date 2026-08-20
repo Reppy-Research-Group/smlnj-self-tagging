@@ -55,7 +55,7 @@
 /* Extract the components of an array/vector header */
 #define GET_SEQ_DATA(p)		REC_SEL(p, 0)
 #define GET_SEQ_DATAPTR(ty, p)	REC_SELPTR(ty, p, 0)
-#define GET_SEQ_LEN(p)		REC_SELINT(p, 1)
+#define GET_SEQ_LEN(p)		ENUM_MLtoC(REC_SEL(p, 1))
 
 /* Turn an ML string into a C string */
 #define STR_MLtoC(p)		GET_SEQ_DATAPTR(char, p)
