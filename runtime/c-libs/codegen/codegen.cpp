@@ -188,7 +188,7 @@ ml_val_t llvm_codegen (ml_state_t *msp, const char *src, const char *pkl, size_t
 /* FIXME: it appears (from experimentation) that the entry-point offset is always
  * zero, but we should probably be a bit more careful in the final version.
  */
-	REC_ALLOC2(msp, res, bVec, 0);
+	REC_ALLOC2(msp, res, bVec, INT_CtoML(0));
 	return res;
     }
     else {
