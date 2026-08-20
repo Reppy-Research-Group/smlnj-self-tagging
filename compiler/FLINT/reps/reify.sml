@@ -38,7 +38,7 @@ fun debugmsg(m) = if !debugging then say (m^"\n") else ()
 
 val mkv = LambdaVar.mkLvar
 
-fun tagInt i = INT{ival = IntInf.fromInt i, ty = Target.defaultIntSz}
+fun tagInt i = INT{ival = IntInf.fromInt i, ty = Target.defaultTaggedIntSz}
 fun enum i = ENUM i
 
 (** a special version of WRAP and UNWRAP for post-reify typechecking *)

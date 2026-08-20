@@ -54,6 +54,7 @@ structure TransPrim : sig
 
     val lt_int = LB.ltc_int
     (* the largest fixed-precision int type *)
+    val lt_char = LB.ltc_num 8 (* Char size *)
     val lt_fixed_int = LB.ltc_num Tgt.fixedIntSz
     val lt_bool = LB.ltc_bool
     val lt_unit = LB.ltc_unit
@@ -445,19 +446,29 @@ structure TransPrim : sig
 		    mkCOND (mkApp2 (greater, x, zero), x, PL.APP(negate, x)))
 		end
 	(* inline Char.chr function *)
-	  fun inlChr () = (case coreExn ["Chr"]
-		 of SOME chrExn => let
-		      val wk = PO.UINT Tgt.defaultIntSz
-		      val geu = pCMP(CmpP.GTE, wk, lt_icmp, [])
-		      val c256 = PL.INT{ival = 256, ty = Tgt.defaultIntSz}
-		      in
-			mkFn lt_int (fn i =>
-			  mkCOND(mkApp2 (geu, i, c256), mkRaise(chrExn, lt_int), i))
-		      end
-		  | NONE => (
-		      warn "no access to Chr exception";
-		      PL.PRIM(FP.PRIM CP.CAST, lt_intop1, []))
-		(* end case *))
+	  fun inlChr () = let
+                val trunc =
+                  pPRIM (
+                    CP.TRUNC(Tgt.defaultIntSz, 8),
+                    lt_arw(lt_int, lt_char), [])
+                in
+                  (case coreExn ["Chr"]
+                     of SOME chrExn => let
+                          val wk = PO.UINT Target.defaultIntSz
+                          val geu = pCMP(CmpP.GTE, wk, lt_icmp, [])
+                          val c256 = PL.INT{ival = 256, ty = Target.defaultIntSz}
+                          in
+                            mkFn lt_int (fn i =>
+                              mkCOND(
+                                mkApp2 (geu, i, c256),
+                                mkRaise(chrExn, lt_int),
+                                PL.APP (trunc, i)))
+                          end
+                      | NONE => (
+                          warn "no access to Chr exception";
+                          trunc)
+		  (* end case *))
+                end
 	(* conversion from fixed int to intinf *)
 	  fun inlToInf (opname: string, cvtName: string, primop, primoplt) = let
 		val (orig_arg_lt, res_lt) = (

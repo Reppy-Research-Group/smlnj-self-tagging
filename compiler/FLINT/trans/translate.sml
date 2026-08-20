@@ -153,7 +153,7 @@ fun transNum ({ival, ty}: T.ty IntConst.t) : con =
 	else if TU.equalType(ty, BT.word31Ty)
 	  then mkWORD 31
 	else if TU.equalType(ty, BT.word8Ty)
-	  then mkWORD Target.defaultIntSz  (* DEFAULT64: or:  mkWORD 8 (if we want accurate char size) or: mkWORD 64 *)
+	  then mkWORD 8  (* DEFAULT64: or:  mkWORD 8 (if we want accurate char size) or: mkWORD 64 *)
 	else if TU.equalType(ty, BT.word63Ty)
 	  then mkWORD 63
 	else if TU.equalType(ty, BT.word32Ty)

@@ -172,8 +172,8 @@ structure PrimTyc :> PRIM_TYC =
    * DEFAULT64: this is going to be an issue. Because the wrapping code in CPS
    * will not know that the range is smaller.
    *)
-    fun numPrim n = PT_NUM(Int.max (n, Target.defaultIntSz))
-    (* fun numPrim n = PT_NUM n *)
+    (* fun numPrim n = PT_NUM(Int.max (n, Target.defaultIntSz)) *)
+    fun numPrim n = PT_NUM n
 
   (* mapping from Types.tycon to primtycs *)
     val primTycons = [
