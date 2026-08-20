@@ -351,6 +351,10 @@ C.NUMt{sz=sz}
                             val oper = rawRecord (desc, TP.INT, ity, 1)
                             val arg = if sz < ity
                               then zeroExtend (sz, genV v)
+                                (* DEFAULT64: Unwrapping a small untagged int is
+                                 * by loading the appropriate number of bits
+                                 * after the address. This is ok because our
+                                 * machines are little-endian. *)
                               else genV v
                             in
                               C.ALLOC(oper, [arg], x, bindVarIn(x, k))
