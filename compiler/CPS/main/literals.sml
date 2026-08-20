@@ -161,8 +161,29 @@ structure Literals : LITERALS =
 	  then largeIntToBytes64 o Int.toLarge
 	  else intToBytes32
 
+    (* zero-extend the number n to mlValueSz *)
+    fun extendIntToNativeBytes (sz, n) = let
+          val n = if sz < Target.mlValueSz
+            then let
+              val mask = IntInf.-(IntInf.<<(1, Word.fromInt sz), 1)
+              in
+                IntInf.andb (n, mask)
+              end
+            else n
+          in
+            case Target.mlValueSz
+              of 64 => largeIntToBytes64 n
+               | 32 => largeIntToBytes32 n
+               | sz => bug ("unknown mlValueSz " ^ Int.toString sz)
+          end
+
     fun largeIntToBytes (32, n) = largeIntToBytes32 n
       | largeIntToBytes (64, n) = largeIntToBytes64 n
+      | largeIntToBytes (8, n) = (* DEFAULT64: zero extend word 8 literals *)
+          (case Target.mlValueSz
+             of 64 => largeIntToBytes64 n
+              | 32 => largeIntToBytes32 n
+              | sz => bug ("unknown mlValueSz " ^ Int.toString sz))
       | largeIntToBytes _ = bug "bogus integer size"
 
     fun real64ToBytes r = #1(Real64ToBits.toBits r)
@@ -234,7 +255,15 @@ structure Literals : LITERALS =
 
   (* encode RAW data *)
     fun encRAW (buf, data) = let
-	  val len = W8V.length data div valueSzb
+          val nbytes = W8V.length data
+          (*>DEBUG*)
+          val _ =
+            if nbytes mod valueSzb <> 0 then bug "RAW data is not word aligned" else ()
+          (*<DEBUG*)
+          val len = nbytes div valueSzb
+          (*>DEBUG*)
+          val _ = if len = 0 then bug "zero-length RAW" else ()
+          (*<DEBUG*)
 	  in
 	    if (len <= 2)
 	      then W8B.add1(buf, opRAW_1_2 len)
@@ -632,7 +661,8 @@ structure Literals : LITERALS =
 		  | C.LOOKER(p, ul, v, t, e) => (useValues ul; doExp e)
 		  | C.ARITH(p, ul, v, t, e) => (useValues ul; doExp e)
 		  | C.PURE(C.P.WRAP(C.P.INT sz), [C.NUM{ival, ...}], v, t, e) => (
-		      addRaw (largeIntToBytes(sz, ival), v);
+                      (* DEFAULT64: need to be consistent with cps-to-cfg-fn.sml *)
+		      addRaw (extendIntToNativeBytes(sz, ival), v);
 		      doExp e)
 (* REAL32: FIXME *)
 		  | C.PURE(C.P.WRAP(C.P.FLOAT 64), [C.REAL{ty=64, rval}], v, t, e) => (
