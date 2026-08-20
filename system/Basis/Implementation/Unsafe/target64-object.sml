@@ -115,7 +115,7 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	  (* end case *))
 
     fun toTuple obj = (case (rep obj)
-	   of Unboxed => if (((InlineT.cast obj) : int) = 0)
+	   of Unboxed => if (((InlineT.cast obj) : Int63.int) = 0) (* DEFAULT64: Hack units are 1 *)
 		then []
 		else raise Representation
 	    | Pair => [
@@ -182,8 +182,8 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	   of Raw => ((InlineT.cast obj) : Real64.real)
 	    | _ => raise Representation
 	  (* end case *))
-    fun toInt obj = if (unboxed obj)
-	  then ((InlineT.cast obj) : int)
+    fun toInt63 obj = if (unboxed obj)
+	  then ((InlineT.cast obj) : Int63.int)
 	  else raise Representation
     fun toInt32 obj = if (unboxed obj)
 	  then ((InlineT.cast obj) : Int32.int)
@@ -192,8 +192,9 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
 	    then ((InlineT.cast obj) : Int64.int)
 	    else raise Representation
-    fun toWord obj = if (unboxed obj)
-	  then ((InlineT.cast obj) : word)
+    val toInt = toInt64
+    fun toWord63 obj = if (unboxed obj)
+	  then ((InlineT.cast obj) : Word63.word)
 	  else raise Representation
     fun toWord8 obj = if (unboxed obj)
 	  then ((InlineT.cast obj) : Word8.word)
@@ -205,5 +206,6 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
 	    then ((InlineT.cast obj) : Word64.word)
 	    else raise Representation
+    val toWord = toWord64
 
   end;
