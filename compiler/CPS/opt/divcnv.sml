@@ -67,52 +67,70 @@ structure DivCnv : sig
     val tty = Target.defaultTaggedIntSz
 
     val intTy = C.NUMt{sz = ity, tag=false}
+
     val tagTy = C.NUMt{sz = tty, tag=true}
 
-    val zero = C.NUM{ival = 0, ty = {sz = ity, tag=false}}
-    val one = C.NUM{ival = 1, ty = {sz = ity, tag=false}}
-    fun num iv = C.NUM{ival = iv, ty = {sz = ity, tag=false}}
+    fun numTy sz = C.NUMt{sz=sz, tag=false}
+
+    fun zero sz =
+        C.NUM{ival=0, ty={sz=sz, tag=false}}
+
+    fun one sz =
+        C.NUM{ival=1, ty={sz=sz, tag=false}}
+
+    fun num sz iv =
+        C.NUM{ival=iv, ty={sz=sz, tag=false}}
+
+    fun arith (sz, oper, args, res, ty, k) =
+        C.ARITH(P.IARITH{oper=oper, sz=sz}, args, res, ty, k)
+
+    fun branch (sz, cmp, args, k1, k2) =
+        C.BRANCH(
+          P.CMP{oper=cmp, kind=P.INT sz},
+          args, LV.mkLvar(), k1, k2)
 
     fun signOf (C.NUM{ival, ...}) = if (ival < 0) then N else P
       | signOf _ = U
 
-    fun arith (oper, args, res, ty, k) =
-	  C.ARITH(P.IARITH{oper=oper, sz=ity}, args, res, ty, k)
     fun pure (oper, kind, args, res, ty, k) =
 	  C.PURE(P.PURE_ARITH{oper=oper, kind=kind}, args, res, ty, k)
-    fun branch (cmp, args, k1, k2) =
-	  C.BRANCH(P.CMP{oper=cmp, kind=P.INT ity}, args, LV.mkLvar(), k1, k2)
+
     fun untag (x, x', k) =
 	  C.PURE(P.EXTEND{from=tty, to=ity}, [x], x', intTy, k)
+
     fun tag (x, x', k) =
 	  C.ARITH(P.TEST{from=ity, to=tty}, [x], x', tagTy, k)
 
-    fun expandDiv' (purePrim, x, y, res, k) = let
+    fun expandDiv' (sz, purePrim, x, y, res, k) = let
+          val ty = numTy sz
+          val zero = zero sz
+          val one = one sz
+
 	  fun divide k = let
 		val q = LV.mkLvar()
 		val r = LV.mkLvar()
 		in
 		  if purePrim
-		    then pure(P.QUOT, P.INT ity, [x, y], q, intTy,
-		      pure(P.REM, P.INT ity, [x, y], r, intTy,
+		    then pure(P.QUOT, P.INT sz, [x, y], q, ty,
+		      pure(P.REM, P.INT sz, [x, y], r, ty,
 			k (C.VAR q, C.VAR r)))
-		    else arith(P.IQUOT, [x, y], q, intTy,
-		      arith(P.IREM, [x, y], r, intTy,
+		    else arith(sz, P.IQUOT, [x, y], q, ty,
+		      arith(sz, P.IREM, [x, y], r, ty,
 			k (C.VAR q, C.VAR r)))
 		end
 	  fun xorArgs k (q, r) = let
 		val sgn = LV.mkLvar()
 		in
-		  pure(P.XORB, P.UINT ity, [x, y], sgn, intTy, k (C.VAR sgn) (q, r))
+		  pure(P.XORB, P.UINT sz, [x, y], sgn, ty, k (C.VAR sgn) (q, r))
 		end
 	  fun chkSign (tst, args) (q, r) = let
 		val jk = LV.mkLvar()
 		val q' = LV.mkLvar()
 		in
-		  C.FIX([(C.CONT, jk, [res], [intTy], k)],
-		    branch (tst, args,
-		      branch (P.NEQ, [r, zero],
-			pure (P.SUB, P.INT ity, [q, one], q', intTy,
+		  C.FIX([(C.CONT, jk, [res], [ty], k)],
+		    branch (sz, tst, args,
+		      branch (sz, P.NEQ, [r, zero],
+			pure (P.SUB, P.INT sz, [q, one], q', ty,
 			  C.APP(C.VAR jk, [C.VAR q'])),
 			C.APP(C.VAR jk, [q])),
 		      C.APP(C.VAR jk, [q])))
@@ -141,17 +159,17 @@ structure DivCnv : sig
 	  val res' = LV.mkLvar()
 	  val tagResExp = tag (C.VAR res', res, k)
 	  fun untagY x' = (case y
-		 of C.NUM{ival, ...} => expandDiv' (true, x', num ival, res', tagResExp)
+		 of C.NUM{ival, ...} => expandDiv' (ity, true, x', num ity ival, res', tagResExp)
 		  | _ => let
 		      val y' = LV.mkLvar()
 		      in
 			untag (y, y',
-			  expandDiv' (true, x', C.VAR y', res', tagResExp))
+			  expandDiv' (ity, true, x', C.VAR y', res', tagResExp))
 		      end
 		(* end case *))
 	  in
 	    case x
-	     of C.NUM{ival, ...} => untagY (num ival)
+	     of C.NUM{ival, ...} => untagY (num ity ival)
 	      | _ => let
 		  val x' = LV.mkLvar()
 		  in
@@ -160,32 +178,32 @@ structure DivCnv : sig
 	    (* end case *)
 	  end
       | expandDiv ([x, y], res, C.NUMt{sz, ...}, k) =
-	  if (sz = ity)
-	    then expandDiv' (false, x, y, res, k)
-	    else bug "expandDiv: bogus argument size"
+	    expandDiv' (sz, false, x, y, res, k)
       | expandDiv _ = bug "expandDiv: bogus arguments"
 
-    fun expandMod' (purePrim, x, y, res, k) = let
+    fun expandMod' (sz, purePrim, x, y, res, k) = let
+          val ty = numTy sz
+          val zero = zero sz
 	  fun modulo k = let
 		val r = LV.mkLvar()
 		in
 		  if purePrim
-		    then pure(P.REM, P.INT ity, [x, y], r, intTy, k(C.VAR r))
-		    else arith(P.IREM, [x, y], r, intTy, k(C.VAR r))
+		    then pure(P.REM, P.INT sz, [x, y], r, ty, k(C.VAR r))
+		    else arith(sz, P.IREM, [x, y], r, ty, k(C.VAR r))
 		end
 	  fun xorArgs k r = let
 		val sgn = LV.mkLvar()
 		in
-		  pure(P.XORB, P.UINT ity, [x, y], sgn, intTy, k (C.VAR sgn) r)
+		  pure(P.XORB, P.UINT sz, [x, y], sgn, ty, k (C.VAR sgn) r)
 		end
 	  fun chkSign (tst, args) r = let
 		val jk = LV.mkLvar()
 		val r' = LV.mkLvar()
 		in
-		  C.FIX([(C.CONT, jk, [res], [intTy], k)],
-		    branch (tst, args,
-		      branch (P.NEQ, [r, zero],
-			pure (P.ADD, P.INT ity, [r, y], r', intTy,
+		  C.FIX([(C.CONT, jk, [res], [ty], k)],
+		    branch (sz, tst, args,
+		      branch (sz, P.NEQ, [r, zero],
+			pure (P.ADD, P.INT sz, [r, y], r', ty,
 			  C.APP(C.VAR jk, [C.VAR r'])),
 			C.APP(C.VAR jk, [r])),
 		      C.APP(C.VAR jk, [r])))
@@ -213,17 +231,17 @@ structure DivCnv : sig
 	  val res' = LV.mkLvar()
 	  val tagResExp = tag (C.VAR res', res, k)
 	  fun untagY x' = (case y
-		 of C.NUM{ival, ...} => expandMod' (true, x', num ival, res', tagResExp)
+		 of C.NUM{ival, ...} => expandMod' (ity, true, x', num ity ival, res', tagResExp)
 		  | _ => let
 		      val y' = LV.mkLvar()
 		      in
 			untag (y, y',
-			  expandMod' (true, x', C.VAR y', res', tagResExp))
+			  expandMod' (ity, true, x', C.VAR y', res', tagResExp))
 		      end
 		(* end case *))
 	  in
 	    case x
-	     of C.NUM{ival, ...} => untagY (num ival)
+	     of C.NUM{ival, ...} => untagY (num ity ival)
 	      | _ => let
 		  val x' = LV.mkLvar()
 		  in
@@ -232,9 +250,7 @@ structure DivCnv : sig
 	    (* end case *)
 	  end
       | expandMod ([x, y], res, C.NUMt{sz, ...}, k) =
-	  if (sz = ity)
-	    then expandMod' (false, x, y, res, k)
-	    else bug "expandMod: bogus argument size"
+	  expandMod' (sz, false, x, y, res, k)
       | expandMod _ = bug "expandMod: bogus arguments"
 
   end

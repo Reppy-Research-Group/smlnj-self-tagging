@@ -215,7 +215,7 @@ val isFloat  = RT.isFloat
 
 val isPair = RT.isPair
 
-fun tagInt i = INT{ival = IntInf.fromInt i, ty = Target.defaultIntSz}
+fun tagInt i = INT{ival = IntInf.fromInt i, ty = Target.defaultTaggedIntSz}
 fun enum i = ENUM i
 
 (****************************************************************************

@@ -344,16 +344,23 @@ C.NUMt{sz=sz}
 			C.ALLOC(record D.desc_polyarr, [var dataP, mlInt' 0], x,
 			  bindVarIn(x, k)))
 		      end
-		  | PURE(P.WRAP(P.INT sz), [v], x, _, k) => if (sz = ity)
-			then let
-			  val desc = D.makeDesc'(1, D.tag_raw)
-			  val oper = rawRecord (desc, TP.INT, 1)
-			  in
-			    C.ALLOC(oper, [genV v], x, bindVarIn(x, k))
-			  end
-		      else if (sz < ity)
+		  | PURE(P.WRAP(P.INT sz), [v], x, _, k) => if isTaggedInt sz
 			then error ["wrap for tagged ints is not implemented"]
-			else error ["wrap(INT ", Int.toString sz, ") is not implemented"]
+                        else if sz <= ity
+                          then let
+                            val desc = D.makeDesc'(1, D.tag_raw)
+                            val oper = rawRecord (desc, TP.INT, 1)
+                            val arg = if sz < ity
+                              then zeroExtend (sz, genV v)
+                                (* DEFAULT64: Unwrapping a small untagged int is
+                                 * by loading the appropriate number of bits
+                                 * after the address. This is ok because our
+                                 * machines are little-endian. *)
+                              else genV v
+                            in
+                              C.ALLOC(oper, [arg], x, bindVarIn(x, k))
+                            end
+                          else error ["wrap(INT ", Int.toString sz, ") is not implemented"]
 		  | PURE(P.WRAP(P.FLOAT 32), [v], x, _, k) => (* REAL32: FIXME *)
 		      error ["wrap for 32-bit floats is not implemented"]
 		  | PURE(P.WRAP(P.FLOAT 64), [v], x, _, k) => let
@@ -433,10 +440,16 @@ C.NUMt{sz=sz}
 			    TP.RAW_UPDATE{kind = kind, sz = sz},
 			    [getSeqData(genV arr), genV ix, arg],
 			    k)
+                      fun coerceInt (sz, signed) = if (sz = defaultTaggedIntSz) orelse (sz = ity)
+                            (* IntArray.array will store values in tagged form *)
+                              then genV v
+                            else if (sz < defaultTaggedIntSz)
+                              then trunc (sz, signed, v)
+                              else error [" NUMUPDATE of unsupported size ", Int.toString sz]
 		      in
 			case kind
-			 of P.INT sz => set (TP.INT, normSz sz, genV v)
-			  | P.UINT sz => set (TP.INT, normSz sz, genV v)
+                         of P.INT sz => set (TP.INT, sz, coerceInt (sz, true))
+                          | P.UINT sz => set (TP.INT, sz, coerceInt (sz, false))
 			  | P.FLOAT sz => set (TP.FLT, sz, genV v)
 			(* end case *)
 		      end
@@ -596,14 +609,13 @@ C.NUMt{sz=sz}
 		  | (P.COPY{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
-		      else if (from = defaultTaggedIntSz) andalso (to = ity)
-			then untagUnsigned v
-		      else if (from < defaultTaggedIntSz)
-			then if (to <= defaultTaggedIntSz)
-			  then zeroExtend(from, genV v)
-(* QUESTION: do we need to zero extend v before untagging it? *)
-			  else untagUnsigned v
-			else error ["genPure: ", PPCps.pureToString p]
+		      else
+                        let val raw =
+                              if isTaggedInt from then untagSigned v else genV v
+                        in  if from < to
+                              then zeroExtend(from, raw)
+                              else error ["genPure: ", PPCps.pureToString p]
+                        end
 		  | (P.EXTEND{from, to}, [v]) =>
 		      if (from = to)
 			then genV v
@@ -764,8 +776,8 @@ C.NUMt{sz=sz}
 	    | untagUnsigned (NUM _) = error["unexpected untagged integer"]
 	    | untagUnsigned v = untag (false, genV v)
 	  and trunc (sz, _, NUM{ival, ...}) = C.NUM{iv=ival, sz=sz}
-	    | trunc (sz, true, v) = pure(TP.TRUNC{from=ity, to=sz}, [untagSigned v])
-	    | trunc (sz, false, v) = pure(TP.TRUNC{from=ity, to=sz}, [untagUnsigned v])
+	    | trunc (sz, true, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
+	    | trunc (sz, false, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
 	(* convert a raw integer value to a tagged integer w/o trapping *)
 	  and toMLWord exp = (* `(exp << 1) + 1` *)
 		pureOp(TP.ADD, ity, [pureOp(TP.SHL, ity, [exp, one]), one])

@@ -51,7 +51,7 @@ fun numToCon (v, ty) =
 	else if TU.equalType(ty, BT.word31Ty)
 	  then mkWORD 31
 	else if TU.equalType(ty, BT.word8Ty)
-	  then mkWORD 63
+	  then mkWORD 8
 	else if TU.equalType(ty, BT.word63Ty)
 	  then mkWORD 63
 	else if TU.equalType(ty, BT.word32Ty)
@@ -63,13 +63,13 @@ fun numToCon (v, ty) =
 
 (* intCon : int -> con
  *  default integer pattern constant *)
-fun intCon n = INTcon {ival = IntInf.fromInt n, ty = Target.defaultTaggedIntSz}
-  (* DEFAULT64: QUESTION: are chars tagged? Assume yes for now. *)
+fun intCon n = INTcon {ival = IntInf.fromInt n, ty = Target.defaultIntSz}
+  (* DEFAULT64: QUESTION: are chars tagged? Assume no for now. *)
 
 (* charCon : char -> con
  *  pattern constant for character literal; "promoting" char to int *)
 (* QUESTION: perhaps this should be a Word8.word literal? Or later Word16.word? Word32.word? *)
-fun charCon c = intCon (Char.ord c)
+fun charCon c =  WORDcon {ival = IntInf.fromInt (Char.ord c), ty = 8}
 
 (* addVarRule : ruleno * protoAndor -> protoAndor *)
 fun addVarRule (rule: ruleno, ANDp{varRules, children}) =

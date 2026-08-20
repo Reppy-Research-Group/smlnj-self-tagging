@@ -252,7 +252,7 @@ struct
     val cplv = LV.dupLvar
     val mklv = LV.mkLvar
 
-    fun tagInt n = F.INT{ival = IntInf.fromInt n, ty = Target.defaultIntSz}
+    fun tagInt n = F.INT{ival = IntInf.fromInt n, ty = Target.defaultTaggedIntSz}
 
     datatype sval
       = Val    of F.value  (* INVARIANT: the F.value arg should be a constant, i.e. never F.VAR *)
