@@ -217,7 +217,7 @@ let val getlty =  Recover.recover (fdec, false)
 			  handle LD.DeconExn => bug "transform loop"
                       val lt_exr =
                         LD.tcc_tuple [LB.tcc_void, tycNarrow ax, LB.tcc_int]
-                   in RECORD(FU.rk_tuple, [VAR x, u, tagInt 0], z,
+                   in RECORD(FU.rk_tuple, [VAR x, u, enum 0 (* List.nil *)], z,
                              WRAP(lt_exr, [VAR z], v, loop e))
                   end
 
