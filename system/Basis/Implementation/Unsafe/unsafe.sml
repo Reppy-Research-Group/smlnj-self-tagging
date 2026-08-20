@@ -148,4 +148,6 @@ structure Unsafe :> UNSAFE =
 
     val sigHandler = Assembly.sighandler
 
+    val dummy = fn (x: 'a) => CInterface.c_function "SMLNJ-RunT" "dummy" x : unit;
+    val debug = fn (x: string) => CInterface.c_function "SMLNJ-RunT" "debug" x : unit;
   end;
