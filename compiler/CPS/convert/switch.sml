@@ -212,6 +212,7 @@ structure Switch : sig
     fun enumSwitch (arg, nk, cases, default, optRange) =
 	  taggedNumSwitchWith (tagEnumTy, tagEnum, arg, nk, cases, default, optRange)
 
+  (* NOTE: this is a misnomer, should be rawNumSwitch or something. *)
   (* generate a switch for a boxed integer/word type. *)
     fun boxedNumSwitch (arg, CPS.NUMt ty, nk, cases, default) = let
 	  fun branch (cmpOp, i, tr, fl) = CPS.BRANCH(
