@@ -53,9 +53,9 @@ end = struct
 
     fun toInf (prim, sz, [x, f], v, t, e) = let
 	  val k = LV.mkLvar ()
-	  val body = if Target.isTaggedIntSz sz
+	  val body = if sz < boxNumSz
 		  then let
-		  (* for tagged values, we promote to the boxed type before calling
+		  (* for smaller values, we promote to the boxed type before calling
 		   * the conversion function.
 		   *)
 		    val v' = LV.mkLvar ()
@@ -84,66 +84,73 @@ end = struct
 
     fun truncInf (sz, [x, f], v, t, e) = let
 	  val k = LV.mkLvar ()
-	  in
-		    if Target.isTaggedIntSz sz
-	      then let
-		val v' = LV.mkLvar ()
-		val retContBody =
-		      C.PURE (C.P.TRUNC{from=boxNumSz, to=sz}, [C.VAR v'], v, t, e)
-		in
-		  C.FIX (
-		    [(C.CONT, k, [v'], [boxNumTy], retContBody)],
-		    C.APP (f, [C.VAR k, x]))
-		end
-	    else if (sz = boxNumSz)
-	      then C.FIX ([(C.CONT, k, [v], [t], e)], C.APP (f, [C.VAR k, x]))
-	      else let
-	      (* for a 64-bit result on 32-bit target, we need to intern the
-	       * result, which will be a packed pair of 32-bit words.
-	       *)
-		val hi = LV.mkLvar ()
-		val lo = LV.mkLvar ()
-		val retContBody = C.RECORD(C.RK_RAWBLOCK, [
-			(C.VAR hi, C.OFFp 0), (C.VAR lo, C.OFFp 0)
-		      ], v, e)
-		in
-		  C.FIX (
-		    [(C.CONT, k, [hi, lo], [boxNumTy, boxNumTy], retContBody)],
-		    C.APP (f, [C.VAR k, x]))
-		end
-	  end
+          in
+            if sz < boxNumSz
+              then let
+                val v' = LV.mkLvar ()
+                val retContBody =
+                      C.PURE (
+                        C.P.TRUNC{from=boxNumSz, to=sz},
+                        [C.VAR v'], v, t, e)
+                in
+                  C.FIX (
+                    [(C.CONT, k, [v'], [boxNumTy], retContBody)],
+                    C.APP (f, [C.VAR k, x]))
+                end
+
+            else if sz = boxNumSz
+              then
+                C.FIX (
+                  [(C.CONT, k, [v], [t], e)],
+                  C.APP (f, [C.VAR k, x]))
+
+            else let
+              (* wider-than-machine result; e.g. 64 bits on a 32-bit target *)
+              val hi = LV.mkLvar ()
+              val lo = LV.mkLvar ()
+              val retContBody =
+                    C.RECORD(C.RK_RAWBLOCK, [
+                        (C.VAR hi, C.OFFp 0),
+                        (C.VAR lo, C.OFFp 0)
+                      ], v, e)
+              in
+                C.FIX (
+                  [(C.CONT, k, [hi, lo], [boxNumTy, boxNumTy], retContBody)],
+                  C.APP (f, [C.VAR k, x]))
+              end
+          end
       | truncInf _ = bug "truncInf: incorrect number of arguments"
 
     fun testInf (sz, [x, f], v, t, e) = let
-	  val k = LV.mkLvar ()
-	  in
-		    if Target.isTaggedIntSz sz
-	      then let
-		val v' = LV.mkLvar ()
-	      (* NOTE: we may need to lower the TEST from boxNumSz to sz! *)
-		val retContBody = TestCnv.test (boxNumSz, sz, [C.VAR v'], v, t, e)
-		in
-		  C.FIX (
-		    [(C.CONT, k, [v'], [boxNumTy], retContBody)],
-		    C.APP (f, [C.VAR k, x]))
-		end
-	    else if (sz = boxNumSz)
-	      then C.FIX ([(C.CONT, k, [v], [t], e)], C.APP (f, [C.VAR k, x]))
-	      else let
-	      (* for a 64-bit result on 32-bit target, we need to intern the
-	       * result, which will be a packed pair of 32-bit words.
-	       *)
-		val hi = LV.mkLvar ()
-		val lo = LV.mkLvar ()
-		val retContBody = C.RECORD(C.RK_RAWBLOCK, [
-			(C.VAR hi, C.OFFp 0), (C.VAR lo, C.OFFp 0)
-		      ], v, e)
-		in
-		  C.FIX (
-		    [(C.CONT, k, [hi, lo], [boxNumTy, boxNumTy], retContBody)],
-		    C.APP (f, [C.VAR k, x]))
-		end
-	  end
+          val k = LV.mkLvar ()
+          in
+            if sz < boxNumSz
+              then let
+                val v' = LV.mkLvar ()
+              (* NOTE: we may need to lower the TEST from boxNumSz to sz! *)
+                val retContBody = TestCnv.test (boxNumSz, sz, [C.VAR v'], v, t, e)
+                in
+                  C.FIX (
+                    [(C.CONT, k, [v'], [boxNumTy], retContBody)],
+                    C.APP (f, [C.VAR k, x]))
+                end
+            else if (sz = boxNumSz)
+              then C.FIX ([(C.CONT, k, [v], [t], e)], C.APP (f, [C.VAR k, x]))
+              else let
+              (* for a 64-bit result on 32-bit target, we need to intern the
+               * result, which will be a packed pair of 32-bit words.
+               *)
+                val hi = LV.mkLvar ()
+                val lo = LV.mkLvar ()
+                val retContBody = C.RECORD(C.RK_RAWBLOCK, [
+                        (C.VAR hi, C.OFFp 0), (C.VAR lo, C.OFFp 0)
+                      ], v, e)
+                in
+                  C.FIX (
+                    [(C.CONT, k, [hi, lo], [boxNumTy, boxNumTy], retContBody)],
+                    C.APP (f, [C.VAR k, x]))
+                end
+          end
       | testInf _ = bug "testInf: incorrect number of arguments"
 
   end
