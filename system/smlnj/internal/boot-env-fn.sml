@@ -46,6 +46,11 @@ functor BootEnvF (
     (* just run CMB.make to make a new set of binfiles... *)
     fun recompile (bindir, light) =
 	(say (concat ["[building new binfiles in ", bindir, "]\n"]);
+         if Option.isSome (OS.Process.getEnv "CMB_DUMP") then
+           (Control.CG.printit := true; Control.FLINT.printAllIR := true;
+            Control.CG.printCFG := true)
+         else
+           ();
 	 cmbmake (bindir, light);
 	 OS.Process.exit OS.Process.success)
 
