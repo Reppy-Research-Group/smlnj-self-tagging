@@ -11,7 +11,7 @@ signature LITERAL_TO_NUM =
 
     val isNegative : IntInf.int -> bool
 
-    val repDigits : IntInf.int -> word list  (* expose representation *)
+    val repDigits : IntInf.int -> Word63.word list  (* expose representation *)
 
     val lowVal : IntInf.int -> int option
 

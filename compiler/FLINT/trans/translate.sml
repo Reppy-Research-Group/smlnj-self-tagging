@@ -1562,7 +1562,7 @@ and transIntInf d s =
     let val consexp = CONexp (BT.consDcon, [ref (T.INSTANTIATED BT.word63Ty)])
 	fun build [] = CONexp (BT.nilDcon, [ref (T.INSTANTIATED BT.word63Ty)])
 	  | build (d :: ds) = let
-	      val i = Word.toIntX d
+	      val i = Word63.toIntX d
 	      in
 		APPexp (consexp, EU.TUPLEexp [
 		    NUMexp("<lit>", {ival = IntInf.fromInt i, ty = BT.word63Ty}),
@@ -1576,7 +1576,7 @@ and transIntInf d s =
 	fun small w =
 	      APP (mkSmallFn s,
 		mkExp (
-		  NUMexp("<lit>", {ival = IntInf.fromInt (Word.toIntX w), ty = BT.word63Ty}),
+		  NUMexp("<lit>", {ival = IntInf.fromInt (Word63.toIntX w), ty = BT.word63Ty}),
 		  d))
      in case LN.repDigits s
           of [] => small 0w0
