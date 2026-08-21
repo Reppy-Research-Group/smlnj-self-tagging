@@ -33,8 +33,12 @@ structure IntInfToReal64 : sig
 	  fun calc (k, d1, d2, []) =
 		dosign (Assembly.A.scalb (w2r d1 + rbase * w2r d2, k))
 	    | calc (k, _, d1, d2 :: r) = calc (k + baseBits, d1, d2, r)
+
+          (* DEFAULT64 Hack: digits are word63 *)
+          fun cvtTag (digits as []: Word63.word list): word list = []
+            | cvtTag (d :: ds) = InlineT.Word63.toLargeX d :: cvtTag ds
 	  in
-	    case digits
+	    case cvtTag digits
 	     of [] => 0.0
 	      | [d] => dosign (w2r d)
 	      | [d1, d2] => dosign (w2r d1 + rbase * w2r d2)

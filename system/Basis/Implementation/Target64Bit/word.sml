@@ -6,11 +6,19 @@
  * Default word structure (63 bits) for 64-bit targets.
  *)
 
-structure WordImp : WORD =
+structure WordImp : sig
+  include WORD
+  eqtype word63
+  val word63ToIntX : word63 -> int
+end =
   struct
     structure Word = InlineT.Word
 
     type word = word
+
+    (* DEFAULT64: major gross hack *)
+    type word63 = Word63.word
+    val word63ToIntX = InlineT.Word63.toIntX
 
     val wordSize = 63
 

@@ -6,7 +6,7 @@
  * Default int structure (63 bits) for 64-bit targets.
  *)
 
-structure IntImp : INTEGER =
+structure IntImp : sig include INTEGER eqtype int63 end =
   struct
     structure Int = InlineT.Int
 
@@ -14,6 +14,9 @@ structure IntImp : INTEGER =
     exception Overflow = Assembly.Overflow
 
     type int = int
+
+    (* DEFAULT64: gross hack *)
+    type int63 = Int63.int
 
     val precision = SOME 63
     val minIntVal = ~4611686018427387904

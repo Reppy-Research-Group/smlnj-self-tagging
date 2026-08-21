@@ -51,7 +51,7 @@ structure IntInfImp :> INT_INF = struct
     datatype rep = datatype CoreIntInf.rep
     val concrete = CoreIntInf.concrete
     val abstract = CoreIntInf.abstract
-    val baseBits = WordImp.toIntX CoreIntInf.baseBits
+    val baseBits = Word64Imp.toIntX CoreIntInf.baseBits
 
     fun binary (f, genSign) (x, y) = let
 	val BI{negative=sx,digits=xs} = concrete x
@@ -62,10 +62,10 @@ structure IntInfImp :> INT_INF = struct
         (* convert to two's complement;
          * Compute (- x - borrow)
          *)
-        fun twos (false, x, borrow) = (x, 0w0)
+        fun twos (false, x, borrow) : Word63.word * Word63.word = (x, 0w0)
           | twos (true, 0w0, 0w0) = (0w0, 0w0) (* no borrow *)
           | twos (true, x, borrow) =
-	      (CoreIntInf.base - x - borrow, 0w1) (* borrow *)
+	      (CoreIntInf.base63 - x - borrow, 0w1) (* borrow *)
 
         (* convert to ones's complement *)
         val ones = twos
@@ -78,7 +78,7 @@ structure IntInfImp :> INT_INF = struct
           | loop (x :: xs, y::ys, bx, by, bz) =
               loop1 (x, xs, y, ys, bx, by, bz)
 
-	and loop1 (x, xs, y, ys, bx, by, bz) =
+	and loop1 (x: Word63.word, xs, y, ys, bx, by, bz) =
             let (* convert from ones complement *)
                 val (x, bx) = twos (sx, x, bx)
                 val (y, by) = twos (sy, y, by)
@@ -99,19 +99,19 @@ structure IntInfImp :> INT_INF = struct
 
     (* split a shift amount into the number of digits and bits *)
     fun shiftAmount w =
-	{ bytes = WordImp.div (w, CoreIntInf.baseBits),
-	  bits = WordImp.mod (w, CoreIntInf.baseBits) }
+	{ bytes = Word64Imp.div (w, CoreIntInf.baseBits),
+	  bits = Word64Imp.mod (w, CoreIntInf.baseBits) }
 
     infix || && << >>
-    val op << = WordImp.<<
-    val op >> = WordImp.>>
-    val op && = WordImp.andb
-    val op || = WordImp.orb
+    val op << = InlineT.Word63.lshift
+    val op >> = InlineT.Word63.rshift
+    val op && = InlineT.Word63.andb
+    val op || = InlineT.Word63.orb
 
     (* formatting for bases 2, 8, 16 by slicing off the right number of
      * bits... *)
     fun bitfmt (bits, maxdig, digvec) i = let
-	fun dig d = StringImp.sub (digvec, WordImp.toIntX d)
+	fun dig d = StringImp.sub (digvec, InlineT.Word63.toIntX d)
 
 	val BI { digits, negative } = concrete i
 	fun addsign l = if negative then #"~" :: l else l
@@ -138,8 +138,8 @@ structure IntInfImp :> INT_INF = struct
 
     val (decBase, decDigs) = let
 	fun try (b, d) =
-	    if b <= CoreIntInf.base then (b, d)
-	    else try (WordImp.div (b, 0w10), d - 1)
+	    if InlineT.Word63.<= (b, CoreIntInf.base63) then (b, d)
+	    else try (InlineT.Word63.div (b, 0w10), d - 1)
     in
 	try (0w1000000000, 9)
     end
@@ -147,12 +147,12 @@ structure IntInfImp :> INT_INF = struct
     (* decimal formatting by repeatedly dividing by the largest
      * possible power of 10: *)
     fun decfmt i = let
-	val toString = WordImp.fmt StringCvt.DEC
+	val toString = WordImp.fmt StringCvt.DEC o InlineT.Word63.toLargeX
 	fun decDig d = StringCvt.padLeft #"0" decDigs (toString d)
 
 	fun loop (l, []) = l
 	  | loop (l, [x]) = toString x :: l
-	  | loop (l, xs) = let
+	  | loop (l, xs: Word63.word list) = let
 		val (q, r) = CoreIntInf.natdivmodd (xs, decBase)
 	    in
 		loop (decDig r :: l, q)
@@ -185,7 +185,7 @@ structure IntInfImp :> INT_INF = struct
 	  | BI { digits, ... } => let
 		fun wloop (0w0, _) = raise Domain (* should never happen *)
 	          | wloop (0w1, lg) = lg
-		  | wloop (w, lg) = wloop (WordImp.>> (w, 0w1), lg + 1)
+		  | wloop (w, lg) = wloop (InlineT.Word63.rshift (w, 0w1), lg + 1)
 		fun loop ([], lg) = raise Domain
 		  | loop ([x], lg) = wloop (x, lg)
 		  | loop (x :: xs, lg) = loop (xs, lg + baseBits)
@@ -193,9 +193,9 @@ structure IntInfImp :> INT_INF = struct
 		loop (digits, 0)
 	    end
 
-    val orb = binary (WordImp.orb, fn (x, y) => x orelse y)
-    val andb = binary (WordImp.andb, fn (x, y) => x andalso y)
-    val xorb = binary (WordImp.xorb, fn (x, y) => x <> y)
+    val orb = binary (InlineT.Word63.orb, fn (x, y) => x orelse y)
+    val andb = binary (InlineT.Word63.andb, fn (x, y) => x andalso y)
+    val xorb = binary (InlineT.Word63.xorb, fn (x, y) => x <> y)
 
     (* left shift; just shift the digits, no special treatment for
      * signed versus unsigned. *)
@@ -206,10 +206,10 @@ structure IntInfImp :> INT_INF = struct
 		val bits' = CoreIntInf.baseBits - bits
 		fun pad (0w0, xs) = xs
 		  | pad (n, xs) = pad (n-0w1, 0w0 :: xs)
-		fun shift ([], 0w0) = []
+		fun shift ([]: Word63.word list, 0w0) = []
 		  | shift ([], carry) = [carry]
 		  | shift (x :: xs, carry) = let
-		      val maxVal = CoreIntInf.maxDigit
+		      val maxVal = CoreIntInf.maxDigit63
 		      val digit = ((x << bits) || carry) && maxVal
 		      val carry' = x >> bits'
 		      in
@@ -241,7 +241,7 @@ structure IntInfImp :> INT_INF = struct
 		  | shift (x :: xs) = let
 		      val (zs, borrow) = shift xs
 		      val z = borrow || (x >> bits)
-		      val borrow' = (x << bits') && CoreIntInf.maxDigit
+		      val borrow' = (x << bits') && CoreIntInf.maxDigit63
 		      in
 			(* strip leading 0 *)
 			case (z, zs)
@@ -297,12 +297,14 @@ structure IntInfImp :> INT_INF = struct
     fun bitscan (bits, xOkay) getchar = let
           fun dcons (0w0, []) = []
             | dcons (x, xs) = x :: xs
-          val pos0 = CoreIntInf.baseBits - bits
-          val maxVal = CoreIntInf.maxDigit
-          val maxDigit = (0w1 << bits) - 0w1
+          val bits64 = InlineT.Word63.toLargeX bits
+          val pos0 = CoreIntInf.baseBits - bits64
+          val maxVal = CoreIntInf.maxDigit63
+          val maxDigit = (0w1 << bits64) - 0w1
           val scanPrefix = ScanUtil.scanPrefix (ScanUtil.hexPat false) getchar
           fun scan s = (case scanPrefix s
                  of SOME{neg, next, rest} => let
+                      val next = InlineT.Word63.fromLarge next
                       fun digloop (d, pos, nat, s) = let
                             fun done () = let
                                   val i = (case dcons (d, nat)
@@ -317,18 +319,18 @@ structure IntInfImp :> INT_INF = struct
                               case getchar s
                                of NONE => done ()
                                 | SOME (c, s') => let
-                                    val v = ScanUtil.code c
+                                    val v = InlineT.Word63.fromLarge (ScanUtil.code c)
                                     in
                                       if (maxDigit < v)
                                         then done()
-                                      else if (pos < bits)
+                                      else if (pos < bits64)
                                         then if pos = 0w0
                                           then digloop (v << pos0, pos0, dcons (d, nat), s')
                                           else digloop ((v << (pos0 + pos)) && maxVal,
                                                         pos0 + pos,
-                                                        dcons (d || (v >> (bits - pos)), nat),
+                                                        dcons (d || (v >> (bits64 - pos)), nat),
                                                         s')
-                                        else digloop (d || (v << (pos - bits)), pos - bits,
+                                        else digloop (d || (v << (pos - bits64)), pos - bits64,
                                                       nat, s')
                                     end
                               (* end case *)
@@ -343,7 +345,7 @@ structure IntInfImp :> INT_INF = struct
           end
 
     fun decscan getchar s = let
-          fun digVal c = let val d = ScanUtil.code c
+          fun digVal c = let val d = InlineT.Word63.fromLarge (ScanUtil.code c)
                 in
                   if (d <= 0w9) then SOME d else NONE
                 end
@@ -359,7 +361,7 @@ structure IntInfImp :> INT_INF = struct
                 in
                   case getchar s
                    of SOME(c, s') => let
-                        val v' = ScanUtil.code c
+                        val v' = InlineT.Word63.fromLarge (ScanUtil.code c)
                         in
                           if (v' > 0w9)
                             then done()
