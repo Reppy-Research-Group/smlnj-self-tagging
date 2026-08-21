@@ -602,7 +602,7 @@ fun genintinfswitch (subject: lexp, cases, default) =
 	      COND (APP (#getIntInfEq eqDict (), RECORD [VAR sv, VAR (getII n)]),
 		    e, build r)
 	(* make a small int constant pattern *)
-	fun mkSmall n = INTcon{ival = IntInf.fromInt n, ty = Tgt.defaultTaggedIntSz}
+	fun mkSmall n = INTcon{ival = IntInf.fromInt n, ty = Tgt.defaultIntSz}
 	(* split pattern values into small values and large values;
 	 * small values can be handled directly using SWITCH *)
 	fun split ([], s, l) = (rev s, rev l)
