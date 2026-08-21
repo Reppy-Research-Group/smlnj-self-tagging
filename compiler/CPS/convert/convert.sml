@@ -146,13 +146,13 @@ functor Convert (MachSpec : MACH_SPEC) : CONVERT =
 
   (* primwrap: cty -> P.pure *)
     fun primwrap (NUMt{sz, ...}) = P.WRAP(NK.INT sz)
-      | primwrap ENUMt = P.WRAP(NK.INT Target.defaultTaggedIntSz) (* DEFAULT64: Check this *)
+      | primwrap ENUMt = P.CAST
       | primwrap (FLTt sz) = P.WRAP(NK.FLOAT sz)
       | primwrap _ = P.BOX
 
   (* primunwrap: cty -> P.pure *)
     fun primunwrap (NUMt{sz, ...}) = P.UNWRAP(NK.INT sz)
-      | primunwrap ENUMt = P.UNWRAP(NK.INT Target.defaultTaggedIntSz) (* DEFAULT64: Check this *)
+      | primunwrap ENUMt = P.CAST
       | primunwrap (FLTt sz) = P.UNWRAP(NK.FLOAT sz)
       | primunwrap _ = P.UNBOX
 
