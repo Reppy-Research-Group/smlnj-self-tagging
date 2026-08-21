@@ -224,7 +224,8 @@ structure PrimTyc :> PRIM_TYC =
   (** check the boxity of values of each prim tyc; returns true if the primitive
    ** type has a non-uniform unboxed representation (e.g., reals)
    *)
-    fun unboxed (PT_NUM n) = not (Target.isTaggedIntSz n)
+    fun unboxed (PT_NUM 0) = false      (* IntInf.int *)
+      | unboxed (PT_NUM n) = not (Target.isTaggedIntSz n)
       | unboxed (PT_REAL _) = true
       | unboxed _ = false
 

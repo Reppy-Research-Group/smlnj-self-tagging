@@ -133,7 +133,7 @@ let val getlty =  Recover.recover (fdec, false)
                    val (ax,_) = LD.tcd_parrow (LD.ltd_tyc nt)
 		       handle LD.DeconExn => bug "transform"
                    val lt_exr =
-                     LD.tcc_tuple [LB.tcc_void, tycNarrow ax, LB.tcc_int]
+                     LD.tcc_tuple [LB.tcc_void, tycNarrow ax, LB.tcc_void]
                 in (PL.DATAcon(ndc, [], z),
                     fn le => UNWRAP(lt_exr, [VAR z], w,
                                SELECT(VAR w, 1, v, le)))
@@ -216,7 +216,7 @@ let val getlty =  Recover.recover (fdec, false)
                       val (ax,_) = LD.tcd_parrow (LD.ltd_tyc nt)
 			  handle LD.DeconExn => bug "transform loop"
                       val lt_exr =
-                        LD.tcc_tuple [LB.tcc_void, tycNarrow ax, LB.tcc_int]
+                        LD.tcc_tuple [LB.tcc_void, tycNarrow ax, LB.tcc_void]
                    in RECORD(FU.rk_tuple, [VAR x, u, enum 0 (* List.nil *)], z,
                              WRAP(lt_exr, [VAR z], v, loop e))
                   end
