@@ -51,7 +51,7 @@ signature UNSAFE =
 
   (* access to internal representation of the IntInf.int type *)
     structure IntInf : sig
-        datatype rep = BI of { negative : bool, digits : word list }
+        datatype rep = BI of { negative : bool, digits : Word63.word list }
 	val concrete : IntInf.int -> rep
 	val abstract : rep -> IntInf.int
       (* number of bits per digit *)

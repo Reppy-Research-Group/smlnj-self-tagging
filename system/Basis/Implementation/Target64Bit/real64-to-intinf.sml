@@ -12,18 +12,18 @@ structure Real64ToIntInf : sig
 
   end = struct
 
-    structure W = InlineT.Word
+    structure W63 = InlineT.Word63
     structure W64 = InlineT.Word64
     structure IntInf = IntInfImp
 
-    fun w64tow w = W.fromLarge (W64.toLarge w)
+    fun w64tow63 w = W63.fromLarge w
 
   (* convert the mantissa to IntInf.int; note that it is guaranteed
    * to be representable in one digit.
    *)
   fun mkIntInf (_, 0w0) = 0
     | mkIntInf (neg, n) =
-        CoreIntInf.abstract (CoreIntInf.BI{ negative = neg, digits = [w64tow n] })
+        CoreIntInf.abstract (CoreIntInf.BI{ negative = neg, digits = [w64tow63 n] })
 
     fun cvt (mode, x) = let
           val bits = InlineT.Real64.toBits x
@@ -58,7 +58,7 @@ structure Real64ToIntInf : sig
                       (* in this case, we are shifting right, which loses some of the
                        * mantissa bits, so we need to worry about the rounding mode.
                        *)
-                        val shiftAmt = w64tow (bias - exp)
+                        val shiftAmt = bias - exp
                         (* truncate bits *)
                         fun trunc n = mkIntInf (neg, W64.chkRshiftl(n, shiftAmt))
                         (* truncate bits and then add one *)
@@ -122,7 +122,7 @@ structure Real64ToIntInf : sig
                         val n = mkIntInf (neg, mant)
                         in
                           if (bias < exp)
-                            then IntInf.<<(n, w64tow (exp - bias))
+                            then IntInf.<<(n, exp - bias)
                             else n
                         end
                   end

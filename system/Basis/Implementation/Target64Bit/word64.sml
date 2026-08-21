@@ -17,6 +17,9 @@ structure Word64Imp : sig
 
     type word = Word64.word	(* from Basis/TypesOnly *)
 
+    (* DEFAULT64: gross hack *)
+    type word63 = Word63.word
+
     fun unimplemented _ = raise Fail "unimplemented"
 
     val wordSize = 64

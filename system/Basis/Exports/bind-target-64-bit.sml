@@ -6,5 +6,6 @@
  * Exported Basis Library modules that are specific to 64-bit targets.
  *)
 
+(* DEFAULT64: FIXME this is wrong and misleading. *)
 structure Int63 = IntImp
 structure Word63 = WordImp
