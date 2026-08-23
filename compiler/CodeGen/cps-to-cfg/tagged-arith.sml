@@ -117,17 +117,17 @@ structure TaggedArith : sig
 	    | (LSHIFT, [v1, NUM{ival, ...}]) =>
 		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), num ival]))
 	    | (LSHIFT, [NUM{ival, ...}, v2]) =>
-		addTag (pureOp (P.SHL, ity, [num(ival+ival), untagUInt(comp v2)]))
+		addTag (pureOp (P.SHL, ity, [num(ival+ival), comp v2]))
 	    | (LSHIFT, [v1, v2]) =>
-		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), untagUInt(comp v2)]))
+		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), comp v2]))
 	    | (RSHIFT, [v1, NUM{ival, ...}]) =>
 		orTag (pureOp (P.ASHR, ity, [comp v1, num ival]))
 	    | (RSHIFT, [v1, v2]) =>
-		orTag (pureOp (P.ASHR, ity, [comp v1, untagUInt(comp v2)]))
+		orTag (pureOp (P.ASHR, ity, [comp v1, comp v2]))
 	    | (RSHIFTL, [v1, NUM{ival, ...}]) =>
 		orTag (pureOp (P.LSHR, ity, [comp v1, num ival]))
 	    | (RSHIFTL, [v1, v2]) =>
-		orTag (pureOp (P.LSHR, ity, [comp v1, untagUInt(comp v2)]))
+		orTag (pureOp (P.LSHR, ity, [comp v1, comp v2]))
 	    | (ORB, [v1, v2]) => pureOp (P.ORB, ity, [comp v1, comp v2])
 	    | (XORB, [NUM{ival, ...}, v2]) =>
 		pureOp (P.XORB, ity, [num (ival+ival), comp v2])
@@ -144,30 +144,30 @@ structure TaggedArith : sig
 		end
             | (CNTPOP, [v]) =>
                 (* untag argument and then count ones *)
-                tag(pureOp (P.CNTPOP, ity, [untagUInt (comp v)]))
+                pureOp (P.CNTPOP, ity, [untagUInt (comp v)])
             | (CNTLZ, [v]) => if (sz < Target.defaultTaggedIntSz)
                 (* for smaller sizes, we need to adjust the result *)
-                then tag(pureOp (P.SUB, ity, [
+                then pureOp (P.SUB, ity, [
                     pureOp (P.CNTLZ, ity, [zExt(sz, ity, comp v)]),
                     num(IntInf.fromInt(Target.defaultTaggedIntSz - sz))
-                  ]))
+                  ])
                 (* for default ints, the tagging does not affect the
                  * leading-zero count; plus we know that the argument is not zero!
                  *)
-                else tag(pureOp (P.CNTLZ, ity, [comp v]))
+                else pureOp (P.CNTLZ, ity, [comp v])
             | (CNTTZ, [v]) => if (sz < Target.defaultTaggedIntSz)
                 (* CNTTZ(v) == CNTTZ((1 << sz) | (v >> 1)) *)
-                then tag(pureOp(P.CNTTZ, ity, [
+                then pureOp(P.CNTTZ, ity, [
                     pureOp(P.ORB, ity, [
                         num(IntInf.<<(1, Word.fromInt sz)),
                         untagUInt (comp v)
                       ])
-                  ]))
+                  ])
                 (* rotate the argument right by one; this puts the tag bit into
                  * the high-order bit, so the count for zero will return the correct
                  * answer (e.g., Word63.countTrailingZeros 0w0 = 0w63)
                  *)
-                else tag(pureOp (P.CNTTZ, ity, [pureOp (P.ROTR, ity, [comp v, one])]))
+                else pureOp (P.CNTTZ, ity, [pureOp (P.ROTR, ity, [comp v, one])])
             (* NOTE: `CPS/opt/lower.sml` should eliminate the following two cases *)
             | (ROTL, _) => error [".pure: ROTL not supported on tagged words"]
             | (ROTR, _) => error [".pure: ROTR not supported on tagged words"]
