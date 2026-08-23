@@ -57,7 +57,7 @@ structure Switch : sig
       val dt = {sz = Target.defaultIntSz, tag = Target.isTaggedIntSz Target.defaultIntSz}
     in
     val defaultNumTy = CPS.NUMt dt
-    fun defaultNum n = CPS.NUM{ival = n, ty = tt}
+    fun defaultNum n = CPS.NUM{ival = n, ty = dt}
     val tagNumTy = CPS.NUMt tt
     fun tagNum n = CPS.NUM{ival = n, ty = tt}
     val tagEnumTy = CPS.ENUMt
