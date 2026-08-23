@@ -66,7 +66,7 @@ structure StringImp : STRING =
 
   (* convert a character into a single character string *)
     fun str (c : Char.char) : string =
-	  InlineT.PolyVector.sub(PreString.chars, InlineT.cast c)
+	  InlineT.PolyVector.sub(PreString.chars, InlineT.Char.ord c)
 
   (* get a character from a string *)
     val sub : (string * int) -> char = InlineT.CharVector.chkSub

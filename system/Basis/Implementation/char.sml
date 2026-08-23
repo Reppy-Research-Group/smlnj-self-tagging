@@ -19,7 +19,7 @@ structure Char : sig
     val op - = InlineT.Int.-
     val op * = InlineT.Int.*
 
-    val itoc : int -> char = InlineT.cast (* using cast here avoids the bounds check *)
+    val itoc : int -> char = C.chr (* DEFAULT64: TODO use a form to avoid the bounds check *)
     val ctoi : char -> int = C.ord
 
     type char = char

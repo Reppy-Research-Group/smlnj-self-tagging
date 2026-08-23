@@ -134,7 +134,7 @@ structure InlineT =
           (* we need a cast here because the `toInt` conversion sets the high
            * bits to either all zeros or all ones.
            *)
-          val castToInt : int32 -> int = InLine.cast
+          val castToInt : int32 -> int = InLine.int32_to_int64
 	(* wrapper that checks the result for Overflow.  Note that
          * this wrapper breaks the inlining of Int32 arithmetic!
 	 *)

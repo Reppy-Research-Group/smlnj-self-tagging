@@ -263,7 +263,7 @@ in
 
 val size = CV.length : string -> int
 
-fun str (c: char) : string = PV.sub (PreString.chars, InlineT.cast c)
+fun str (c: char) : string = PV.sub (PreString.chars, InlineT.Char.ord c)
 
 (* concatenate a list of strings together *)
 fun concat [] = ""

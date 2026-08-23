@@ -62,7 +62,7 @@ structure PreString =
 
     fun unsafeSubstring (_, _, 0) = ""
       | unsafeSubstring (s, i, 1) =
-	  InlineT.PolyVector.sub (chars, InlineT.cast (unsafeSub (s, i)))
+	  InlineT.PolyVector.sub (chars, InlineT.Char.ord (unsafeSub (s, i)))
       | unsafeSubstring (s, i, n) = let
 	  val ss = unsafeCreate n
 	  fun copy j = if (j = n)

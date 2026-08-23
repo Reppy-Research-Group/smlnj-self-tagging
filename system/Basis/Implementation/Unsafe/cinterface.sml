@@ -19,7 +19,7 @@ structure CInterface :> CINTERFACE =
     fun c_function moduleName funName = let
 	  val cfun = bindCFun (moduleName, funName)
 	  in
-	    if (InlineT.cast cfun <> 0)
+	    if (InlineT.cast cfun <> nil) (* DEFAULT64: sus *)
 	      then fn x => (Assembly.A.callc (cfun, x))
 	      else raise CFunNotFound(String.concat[moduleName, ".", funName])
 	  end
