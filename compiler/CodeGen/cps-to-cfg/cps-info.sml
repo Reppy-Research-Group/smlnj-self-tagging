@@ -164,7 +164,11 @@ structure CPSInfo : sig
 		      case rator
 		       of P.MAKEREF => bindVar x
 			| P.NEWARRAY0 => bindVar x
-			| P.WRAP(P.INT sz) => (align(sz div 8); bindVar x)
+			| P.WRAP(P.INT sz) => (
+			    if Target.isTaggedIntSz sz
+			      then ()
+			    else align Target.alignInBytes; (* DEFAULT64: ?? *)
+			    bindVar x)
 			| P.WRAP(P.FLOAT sz) => (align(sz div 8); bindVar x)
 			| P.RAWRECORD _ => bindVar x
 			| _ => ()
