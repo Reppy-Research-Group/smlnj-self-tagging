@@ -145,9 +145,23 @@ C.NUMt{sz=sz}
   (* get the length field of a sequence *)
     fun getSeqLen obj = select(1, obj)
 
-    fun rawSelect (kind, sz, i, arg) = pure(
-	  TP.RAW_SELECT{kind = kind, sz = sz, offset = i * (sz div 8)},
-	  [arg])
+    fun rawSelect (kind, sz, i, arg) = let
+           val v = pure(
+             TP.RAW_SELECT{kind = kind, sz = sz, offset = i * (sz div 8)},
+             [arg])
+           in
+             if (normSz sz < ity)
+               then pure(TP.TRUNC{from=ity, to=sz}, [v])
+               else v
+           end
+
+    fun recordSelect (sz, i, arg) = let
+          val v = select (i, arg)
+          in
+            if (normSz sz < ity)
+              then pure(TP.TRUNC{from=ity, to=sz}, [v])
+              else v
+          end
 
   (* translate CPS RAWLOAD primop based on kind *)
     fun rawLoad (P.INT sz, args) = let
@@ -222,10 +236,8 @@ C.NUMt{sz=sz}
 		  | RECORD(_, flds, x, k) => allocRecord (
 		      D.makeDesc' (length flds, D.tag_record),
 		      flds, x, bindVarIn(x, k))
-(*
 		  | SELECT(i, v, x, ty as CPS.NUMt{sz, ...}, k) =>
-		      genCont (rawSelect(TP.INT, normSz sz, i, genV v), x, ty, k)
-*)
+		      genCont (recordSelect(sz, i, genV v), x, ty, k)
 		  | SELECT(i, v, x, ty as CPS.FLTt sz, k) =>
 		      genCont (rawSelect(TP.FLT, sz, i, genV v), x, ty, k)
 		  | SELECT(i, v, x, ty, k) =>
@@ -401,7 +413,15 @@ C.NUMt{sz=sz}
 		  | _ => error ["gen.genE: bogus CPS"]
 		(* end case *))
 	(***** ALLOCATION *****)
-	  and getField (v, CPS.OFFp 0) = genV v
+	  and getField (v, CPS.OFFp 0) =
+                 (case typeOfVal v
+                    of CPS.NUMt {sz, tag=_} =>
+                         (* DEFAULT64: This is to deal with closure spilling a
+                          * small raw integer. *)
+                         if normSz sz < ity
+                           then zeroExtend(sz, genV v)
+                           else genV v
+                     | _ => genV v)
 	    | getField (v, p) = let
 		fun getPath (v, CPS.OFFp n) = select(n, v)
 		  | getPath (v, CPS.SELp(n, CPS.OFFp 0)) = select(n, v)
