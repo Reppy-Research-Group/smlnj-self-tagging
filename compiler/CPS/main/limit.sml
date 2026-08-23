@@ -99,10 +99,10 @@ structure Limit : sig
 		    | C.ARITH(P.TEST_INF _, _, _, _, _) => error "TEST_INF in Limit.count"
 		    | C.ARITH(_, _, _, _, e) => continue e
 		    | C.PURE(P.WRAP(P.INT sz), _, _, _, e) =>
-			if (sz = Target.mlValueSz)
-			  then inc (2, e)
-			else if Target.isTaggedIntSz sz
+			if Target.isTaggedIntSz sz
 			  then error "unexpected tagged int wrap in Limit.count"
+                        else if (sz <= Target.mlValueSz)
+			  then inc (2, e)
 			  else inc (1 + sz div Target.mlValueSz, e)
 		    | C.PURE(P.WRAP(P.FLOAT sz), _, _, _, e) => inc (record64Sz 1, e)
 		    | C.PURE(P.NEWARRAY0, _, _, _, e) => inc (seqHdrSz + 2, e)
