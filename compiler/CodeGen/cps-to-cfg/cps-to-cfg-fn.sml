@@ -659,7 +659,17 @@ C.NUMt{sz=sz}
 		  | (P.BOX, [v]) => genV v	(* does this operation ever occur? *)
 		  | (P.UNBOX, [v]) => genV v	(* does this operation ever occur? *)
 		  | (P.UNWRAP(P.INT sz), [v]) =>
-		      looker(TP.RAW_LOAD{sz=sz, kind=TP.INT}, [genV v, zero ity])
+		      if isTaggedInt sz
+			then error ["unwrap for tagged ints is not implemented"]
+			else let
+                          (* load the full-word slot; truncate to sz after the load *)
+			  val load =
+			    looker(TP.RAW_LOAD{sz=ity, kind=TP.INT}, [genV v, zero ity])
+			  in
+			    if sz < ity
+			      then pure(TP.TRUNC{from=ity, to=sz}, [load])
+			      else load
+			  end
 		  | (P.UNWRAP(P.FLOAT sz), [v]) =>
 		      looker(TP.RAW_LOAD{sz=sz, kind=TP.FLT}, [genV v, zero ity])
 		  | (P.GETSEQDATA, [v]) => getSeqData (genV v)
