@@ -260,9 +260,21 @@ C.NUMt{sz=sz}
 			(* end case *)
 		      end
 		  | FIX _ => error ["unexpected FIX"]
-		  | SWITCH(v, _, cases) =>
-                      (* DEFAULT64: SWITCH only works on tagged integers for now *)
-		      C.SWITCH(untagSigned v, List.map genE cases)
+		  | SWITCH(v, _, cases) => let
+		      val arg = (case typeOfVal v
+			     of CPS.ENUMt => untagSigned v
+			      | CPS.NUMt{tag=true, ...} => untagSigned v
+			      | CPS.NUMt{sz, ...} =>
+				  if sz < ity
+				    then zeroExtend(sz, genV v)
+				  else if sz = ity
+				    then genV v
+				    else error ["SWITCH on unsupported raw integer size"]
+			      | _ => untagSigned v
+			    (* end case *))
+		      in
+			C.SWITCH(arg, List.map genE cases)
+		      end
 		  | BRANCH(test, vs, _, k1, k2) =>
 		      genBranch (test, vs, genE k1, genE k2)
 		  | SETTER(P.RAWUPDATE cty, [v, i, w], k) =>
