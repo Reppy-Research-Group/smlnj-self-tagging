@@ -182,7 +182,6 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	   of Raw => ((InlineT.cast obj) : Real64.real)
 	    | _ => raise Representation
 	  (* end case *))
-    (* DEFAULT64: ? *)
     fun toInt63 obj = if (unboxed obj)
 	  then ((InlineT.cast obj) : Int63.int)
 	  else raise Representation
@@ -194,7 +193,9 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
 	    then ((InlineT.cast obj) : Int64.int)
 	    else raise Representation
-    val toInt = toInt64
+    fun toInt obj = if (unboxed obj)
+	  then InlineT.Int63.toInt ((InlineT.cast obj) : Int63.int)
+	  else toInt64 obj
     fun toWord63 obj = if (unboxed obj)
 	  then ((InlineT.cast obj) : Word63.word)
 	  else raise Representation
@@ -210,6 +211,8 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
 	    then ((InlineT.cast obj) : Word64.word)
 	    else raise Representation
-    val toWord = toWord64
+    fun toWord obj = if (unboxed obj)
+	  then InlineT.Word63.toWord64 ((InlineT.cast obj) : Word63.word)
+	  else toWord64 obj
 
   end;
