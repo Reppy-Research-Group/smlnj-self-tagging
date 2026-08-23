@@ -9,3 +9,7 @@
 
 (* system word type *)
 structure SysWordImp = Word64Imp
+
+(* DEFAULT64: default numeric type *)
+structure IntImp = Int64Imp
+structure WordImp = Word64Imp

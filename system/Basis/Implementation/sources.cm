@@ -147,7 +147,8 @@ Group
         structure FixedIntImp
         structure General
         structure IEEEReal
-        structure IntImp
+        structure IntImp    (* default int *)
+        structure Int63Imp
         structure Int32Imp
         structure Int64Imp
         structure IntInfImp
@@ -184,7 +185,8 @@ Group
         structure Timer
         structure Vector
         structure VectorSlice
-        structure WordImp
+        structure WordImp   (* default word *)
+        structure Word63Imp
         structure Word8Imp
         structure Word32Imp
         structure Word64Imp
@@ -484,7 +486,7 @@ is
         Target32Bit/word64.sml
 #else
         Target64Bit/bind-structs.sml
-        Target64Bit/int.sml
+        Target64Bit/int63.sml
         Target64Bit/int64.sml
         Target64Bit/intinf-to-real64.sml
         Target64Bit/num-scan.sml
@@ -495,7 +497,7 @@ is
         Target64Bit/pack-word-l64.sml
         Target64Bit/pointer.sml
         Target64Bit/real64-to-intinf.sml
-        Target64Bit/word.sml
+        Target64Bit/word63.sml
         Target64Bit/word64.sml
 #endif
 

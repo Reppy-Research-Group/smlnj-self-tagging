@@ -6,61 +6,58 @@
  * Default int structure (63 bits) for 64-bit targets.
  *)
 
-structure IntImp : sig include INTEGER eqtype int63 end =
+structure Int63Imp : INTEGER =
   struct
-    structure Int = InlineT.Int
+    structure I63 = InlineT.Int63
 
     exception Div = Assembly.Div
     exception Overflow = Assembly.Overflow
 
-    type int = int
-
-    (* DEFAULT64: gross hack *)
-    type int63 = Int63.int
+    type int = Int63.int
 
     val precision = SOME 63
-    val minIntVal = ~4611686018427387904
-    val minInt = SOME minIntVal
-    val maxInt = SOME 4611686018427387903
+    val minIntVal : int = ~4611686018427387904
+    val minInt : int option = SOME minIntVal
+    val maxInt : int option = SOME 4611686018427387903
 
-    val toLarge : int -> LargeInt.int = Int.toLarge
-    val fromLarge : LargeInt.int -> int = Int.fromLarge
-    val toInt = Int.toInt
-    val fromInt = Int.fromInt
+    val toLarge : int -> LargeInt.int = I63.toLarge
+    val fromLarge : LargeInt.int -> int = I63.fromLarge
+    val toInt = I63.toInt
+    val fromInt = I63.fromInt
 
-    val ~ 	: int -> int = Int.~
-    val op * 	: int * int -> int  = Int.*
-    val op + 	: int * int -> int  = Int.+
-    val op - 	: int * int -> int  = Int.-
-    val op div 	: int * int -> int  = Int.div
-    val op mod 	: int * int -> int  = Int.mod
-    val op quot : int * int -> int  = Int.quot
-    val op rem 	: int * int -> int  = Int.rem
-    val min 	: int * int -> int  = Int.min
-    val max 	: int * int -> int  = Int.max
-    val abs 	: int -> int = Int.abs
+    val ~ 	: int -> int = I63.~
+    val op * 	: int * int -> int  = I63.*
+    val op + 	: int * int -> int  = I63.+
+    val op - 	: int * int -> int  = I63.-
+    val op div 	: int * int -> int  = I63.div
+    val op mod 	: int * int -> int  = I63.mod
+    val op quot : int * int -> int  = I63.quot
+    val op rem 	: int * int -> int  = I63.rem
+    val min 	: int * int -> int  = I63.min
+    val max 	: int * int -> int  = I63.max
+    val abs 	: int -> int = I63.abs
 
     fun sign 0 = 0
-      | sign i = if Int.<(i, 0) then ~1 else 1
+      | sign i = if I63.<(i, 0) then ~1 else 1
 
     fun sameSign (i,j) = (sign i = sign j)
 
     fun compare (i, j) =
-	  if (Int.<(i, j)) then General.LESS
-	  else if (Int.>(i, j)) then General.GREATER
+	  if (I63.<(i, j)) then General.LESS
+	  else if (I63.>(i, j)) then General.GREATER
 	  else General.EQUAL
-    val op > 	: int * int -> bool = Int.>
-    val op >= 	: int * int -> bool = Int.>=
-    val op < 	: int * int -> bool = Int.<
-    val op <= 	: int * int -> bool = Int.<=
+    val op > 	: int * int -> bool = I63.>
+    val op >= 	: int * int -> bool = I63.>=
+    val op < 	: int * int -> bool = I63.<
+    val op <= 	: int * int -> bool = I63.<=
 
-    fun fmt radix = (NumFormat64.fmtInt radix) o InlineT.Int64.fromInt
+    fun fmt radix = (NumFormat64.fmtInt radix) o toInt
 
     fun scan radix = let
 	  val scanInt64 = NumScan64.scanInt radix
 	  fun f getc cs = (case scanInt64 getc cs
 		   of NONE => NONE
-		    | SOME(i, cs') => SOME(Int64Imp.toInt i, cs')
+		    | SOME(i, cs') => SOME(fromInt i, cs')
 		  (* end case *))
 	  in
 	    f
@@ -82,8 +79,17 @@ structure IntImp : sig include INTEGER eqtype int63 end =
 	  val n = size s
 	  val z = ord #"0"
 	  val sub = CV.sub
+
+          (* Indices are always the *default* integer *)
 	  infix ++
 	  fun x ++ y = InlineT.Int.fast_add(x, y)
+          fun x * y = InlineT.Int.* (x, y)
+          fun x - y = InlineT.Int.- (x, y)
+          val op >= = InlineT.Int.>=
+          val op > = InlineT.Int.<
+          val op < = InlineT.Int.<
+          val op ~ = InlineT.Int.~
+
 	  fun num (i, a) = if i >= n
 		then a
 		else let
@@ -119,7 +125,7 @@ structure IntImp : sig include INTEGER eqtype int63 end =
 		      else Option.map ~ (negabs i)
 		  end
 	  in
-	    skipwhite 0
+	    Option.map fromInt (skipwhite 0)
 	  end
     end (* local *)
 
