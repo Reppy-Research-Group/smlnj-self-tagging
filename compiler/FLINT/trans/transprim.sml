@@ -655,7 +655,8 @@ structure TransPrim : sig
                                 | _ => unexpectedTy ()
                               (* end case *))
                         val argt = lt_tup [seqt, lt_int, elemt]
-                        val oper = PL.PRIM(FP.PRIM(CP.NUMUPDATE kind), lt_arw(argt, elemt), [])
+                        val oper = PL.PRIM(FP.PRIM(CP.NUMUPDATE kind),
+                              lt_arw(argt, LB.ltc_unit), [])
                         in
                           mkFn argt (fn x =>
                             mkLet (PL.SELECT(0, x)) (fn a =>
