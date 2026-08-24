@@ -46,8 +46,8 @@ structure TestCnv : sig
   (* bit width of default tagged integer size (31 or 63) *)
     val tty = Target.defaultTaggedIntSz
 
-    val sLT = P.CMP{oper=P.LT, kind=P.INT ity}
-    val uLE = P.CMP{oper=P.LTE, kind=P.UINT ity}
+    fun sLT sz = P.CMP{oper=P.LT, kind=P.INT sz}
+    fun uLE sz = P.CMP{oper=P.LTE, kind=P.UINT sz}
     fun branch (cmp, args, k1, k2) = C.BRANCH(cmp, args, LV.mkLvar(), k1, k2)
 
     val mlUnit = C.ENUM 0
@@ -63,6 +63,8 @@ structure TestCnv : sig
     fun test (from, to, [v], x, ty, k) =
 	  if (from = ity) andalso (to = tty)
 	    then C.ARITH(P.TEST{from=from, to=to}, [v], x, ty, k)
+	  else if (from < to)
+	    then C.PURE(P.EXTEND{from=from, to=to}, [v], x, ty, k)
 	  else if (from = to)
 	    then C.PURE(P.COPY{from=from, to=to}, [v], x, ty, k)
 	  else if (from <= ity) andalso (to < tty)
@@ -73,23 +75,23 @@ structure TestCnv : sig
 	      val minToInt = ~(maxToInt + 1)
 	      val jk = LV.mkLvar()
 	      val jk' = C.VAR jk
+	      fun narrow v = let
+		    val x' = LV.mkLvar()
+		    in
+		      C.PURE(P.TRUNC{from=from, to=to}, [v], x', ty,
+			C.APP(jk', [C.VAR x']))
+		    end
 (*
 	      val trap = C.TRAP(C.APP(jk', [v]))
 *)
-	      val trap = mkTrap (C.APP(jk', [v]))
-	      val x' = LV.mkLvar()
+	      val trap = mkTrap (narrow v)
 	      in
 		C.FIX([(C.CONT, jk, [x], [ty], k)],
-		  branch(sLT, [v, num minToInt],
+		  branch(sLT from, [v, num minToInt],
 		    trap,
-		    branch(sLT, [num maxToInt, v],
+		    branch(sLT from, [num maxToInt, v],
 		      trap,
-		      if fromIsTagged
-		      (* both are tagged, so nothing to do *)
-			then C.APP(jk', [v])
-		      (* convert from untagged to tagged representation *)
-			else C.ARITH(P.TEST{from=ity, to=tty}, [v], x', ty,
-			  C.APP(jk', [C.VAR x'])))))
+		      narrow v)))
 	      end
 	    else bug "TEST with unexpected precisions"
       | test _ = bug "TEST with bogus arguments"
@@ -97,22 +99,30 @@ structure TestCnv : sig
     fun testu (from, to, [v], x, ty, k) =
 	  if (from = to) andalso ((from = ity) orelse (from = tty))
 	    then C.ARITH(P.TESTU{from=from, to=to}, [v], x, ty, k)
-	    else let
+	  else if (from < to)
+	    then C.PURE(P.COPY{from=from, to=to}, [v], x, ty, k)
+	  else let
 	      val fromIsTagged = Target.isTaggedIntSz from
 	      fun num iv = C.NUM{ival=iv, ty={sz=from, tag=fromIsTagged}}
 	      val maxToInt = IntInf.<<(1, Word.fromInt(to - 1)) - 1
 	      val jk = LV.mkLvar()
 	      val jk' = C.VAR jk
-	      val x' = LV.mkLvar()
+	      fun narrow v = let
+		    val x' = LV.mkLvar()
+		    val oper = if (from = to)
+			  then P.COPY{from=from, to=to}
+			  else P.TRUNC{from=from, to=to}
+		    in
+		      C.PURE(oper, [v], x', ty, C.APP(jk', [C.VAR x']))
+		    end
 	      in
 		C.FIX([(C.CONT, jk, [x], [ty], k)],
-		  branch(uLE, [v, num maxToInt],
-		    C.PURE(P.TRUNC{from=from, to=to}, [v], x', ty,
-		      C.APP(jk', [C.VAR x'])),
+		  branch(uLE from, [v, num maxToInt],
+		    narrow v,
 (*
 		    C.TRAP(C.APP(jk', [v]))))
 *)
-		    mkTrap (C.APP(jk', [v]))))
+		    mkTrap (narrow v)))
 	      end
       | testu _ = bug "TESTU with bogus arguments"
 
