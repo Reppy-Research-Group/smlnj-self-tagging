@@ -321,16 +321,21 @@ structure TransPrim : sig
                   w)
 	(* inline expand an arithmetic-shift-right operation; for this operation, we need
 	 * some care to get the sign bit extension correct.  If the size of the value
-	 * being shifted is less than the default tagged-integer width, then we shift it left first
+	 * being shifted is less than the default integer width, then we shift it left first
 	 * and then do an arithmetic right shift followed by a logical right shift to
 	 * produce the final result.  We use two shifts so that the resulting high bits will
 	 * be zeros.
+         * DEFAULT64: This whole thing may go away because we are using native
+         * integers now.
 	 *)
 	  fun inlArithmeticShiftRight sz = let
                 val kind = PO.UINT sz
 		fun lword n = PL.WORD{ival = Int.toLarge n, ty = Tgt.defaultIntSz}
 		val shiftLimit = lword sz
-		val shiftWidth = lword Tgt.defaultIntSz
+		(* Shifting by the operand width is invalid in LLVM.  A shift by one
+		 * less produces the sign-filled result required for larger counts.
+		 *)
+		val maxShift = lword (Tgt.defaultIntSz - 1)
 		val argt = lt_tup [baselt kind, lt_int]
 		val cmpShiftAmt = pCMP(CmpP.LTE, PO.UINT Tgt.defaultIntSz, lt_icmp, [])
 		in
@@ -339,26 +344,35 @@ structure TransPrim : sig
 		      val delta = Tgt.defaultIntSz - sz
 		      val delta' = lword delta
 		      val wordKind = PO.UINT Tgt.defaultIntSz
+		      val trunc = pPRIM(
+			    CP.TRUNC(Tgt.defaultIntSz, sz),
+			    lt_arw(baselt wordKind, baselt kind), [])
 		      in
+                       (* We always use machine-word-sz shifts. Smaller integers
+                        * are promoted to 64-bit first, shifts are performed,
+                        * and then they are truncated back to the original sz.
+                        * DEFAULT64: is it necessary?
+                        * *)
 			mkFn (argt) (fn p =>
 			  mkLet (PL.SELECT(0, p)) (fn w =>
 			  mkLet (PL.SELECT(1, p)) (fn cnt =>
-			  mkLet (mkApp2(lshiftOp wordKind, w, delta')) (fn w' =>
-			    mkCOND(
+			  mkLet (mkApp2(lshiftOp wordKind, promote sz w, delta')) (fn w' =>
+			  mkLet (mkCOND(
 			      mkApp2(cmpShiftAmt, shiftLimit, cnt),
 			      mkApp2(rshiftlOp wordKind,
-			        mkApp2(rshiftOp wordKind, w', shiftWidth),
+			        mkApp2(rshiftOp wordKind, w', maxShift),
 				delta'),
 			      mkApp2(rshiftlOp wordKind,
 				mkApp2(rshiftOp wordKind, w', cnt),
-				delta'))))))
+				delta'))) (fn res =>
+			    PL.APP(trunc, res))))))
 		      end
 		    else mkFn argt (fn p =>
 		      mkLet (PL.SELECT(0, p)) (fn w =>
 		      mkLet (PL.SELECT(1, p)) (fn cnt =>
 			mkCOND(
 			  mkApp2(cmpShiftAmt, shiftLimit, cnt),
-			  mkApp2(rshiftOp kind, w, shiftWidth),
+			  mkApp2(rshiftOp kind, w, maxShift),
 			  mkApp2(rshiftOp kind, w, cnt)))))
 		end
 	(* bounds check for vector/array access *)
