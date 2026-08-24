@@ -471,18 +471,13 @@ C.NUMt{sz=sz}
 			    TP.RAW_UPDATE{kind = kind, sz = sz},
 			    [getSeqData(genV arr), genV ix, arg],
 			    k)
-                      fun coerceInt (sz, signed) = if (sz = defaultTaggedIntSz) orelse (sz = ity)
-                            (* IntArray.array will store values in tagged form *)
-                              then genV v
-                            else if (sz < defaultTaggedIntSz)
-                              then trunc (sz, signed, v)
-                              else error [" NUMUPDATE of unsupported size ", Int.toString sz]
 		      in
+                        (* Numeric-array values must already have the element
+                         * representation. *)
 			case kind
-                         of P.INT sz => set (TP.INT, sz, coerceInt (sz, true))
-                          | P.UINT sz => set (TP.INT, sz, coerceInt (sz, false))
-			  | P.FLOAT sz => set (TP.FLT, sz, genV v)
-			(* end case *)
+			  of P.INT sz => set (TP.INT, sz, checkInt (sz, v))
+ 			   | P.UINT sz => set (TP.INT, sz, checkInt (sz, v))
+ 			   | P.FLOAT sz => set (TP.FLT, sz, genV v)
 		      end
 		  | (P.UNBOXEDUPDATE, [arr, ix, v]) =>
 		      C.SETTER(TP.UNBOXED_UPDATE,
@@ -840,9 +835,14 @@ C.NUMt{sz=sz}
 			else pure(TP.TRUNC{from=from, to=sz}, [genV v])
 		  | _ => error["non-numeric shift amount"]
 		(* end case *))
-	  and trunc (sz, _, NUM{ival, ...}) = num (sz, ival)
-	    | trunc (sz, true, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
-	    | trunc (sz, false, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
+	(* assert that the value is a numeric type of size `sz` *)
+	  and checkInt (sz, v) = (case typeOfVal v
+		 of CPS.NUMt{sz=sz', tag} =>
+		      if (sz = sz') andalso (tag = isTaggedInt sz)
+			then genV v
+			else error["NUMUPDATE representation mismatch"]
+		  | _ => error["non-numeric NUMUPDATE value"]
+		(* end case *))
 	(* convert a raw integer value to a tagged integer w/o trapping *)
 	  and toMLWord exp = (* `(exp << 1) + 1` *)
 		pureOp(TP.ADD, ity, [pureOp(TP.SHL, ity, [exp, one]), one])
