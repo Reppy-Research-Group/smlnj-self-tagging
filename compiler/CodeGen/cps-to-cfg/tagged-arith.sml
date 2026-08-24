@@ -45,12 +45,12 @@ structure TaggedArith : sig
     val maxInt = IntInf.<<(1, Word.fromInt Target.defaultTaggedIntSz - 0w1) - 1
 
   (* CFG integer constants *)
-    fun num iv = C.NUM{iv = iv, sz = ity}
-    fun w2Num iv = num(Word.toLargeInt iv)
-    val zero = num 0
-    val one = num 1
-    val two = num 2
-    val allOnes = num(ConstArith.bNot(ity, 0))		(* machine-word all 1s *)
+    fun num (sz, iv) = C.NUM{iv = iv, sz = sz}
+    fun w2Num iv = num (ity, Word.toLargeInt iv)
+    val zero = num (ity, 0)
+    val one = num (ity, 1)
+    val two = num (ity, 2)
+    val allOnes = num (ity, ConstArith.bNot(ity, 0))	(* machine-word all 1s *)
 
   (* tagging/untagging operations *)
     fun orTag e = pureOp (P.ORB, ity, [e, one])
@@ -65,25 +65,28 @@ structure TaggedArith : sig
   (* pure tagged arithmetic; a number "n" is represented as "2*n+1" *)
     fun pure comp (rator, signed, sz, args) = (case (rator, args)
 	   of (ADD, [NUM{ival, ...}, v2]) =>
-		pureOp (P.ADD, ity, [num (ival+ival), comp v2])
+		pureOp (P.ADD, ity, [num (ity, ival+ival), comp v2])
 	    | (ADD, [v1, NUM{ival, ...}]) =>
-		pureOp (P.ADD, ity, [comp v1, num (ival+ival)])
+		pureOp (P.ADD, ity, [comp v1, num (ity, ival+ival)])
 	    | (ADD, [v1, v2]) =>
 		pureOp (P.ADD, ity, [comp v1, stripTag (comp v2)])
 	    | (SUB, [NUM{ival, ...}, v2]) =>
 (* QUESTION: if ival is the maximum tagged word value, then ival+ival+2 is 0w0 in
  * the native integer size.  Does this cause problems?
  *)
-                pureOp (P.SUB, ity, [num (ival+ival+2), comp v2])
+                pureOp (P.SUB, ity, [num (ity, ival+ival+2), comp v2])
 	    | (SUB, [v1, NUM{ival, ...}]) =>
-		pureOp (P.SUB, ity, [comp v1, num (ival+ival)])
+		pureOp (P.SUB, ity, [comp v1, num (ity, ival+ival)])
 	    | (SUB, [v1, v2]) =>
 		addTag(pureOp (P.SUB, ity, [comp v1, comp v2]))
 	    | (MUL, [v1, v2]) => let
 		val (v1, v2) = (case (v1, v2)
-		       of (NUM{ival=n, ...}, NUM{ival=m, ...}) => (num(n+n), num m)
-			| (NUM{ival, ...}, _) => (num(ival+ival), untag (signed, comp v2))
-			| (_, NUM{ival, ...}) => (untag (signed, comp v1), num(ival+ival))
+		       of (NUM{ival=n, ...}, NUM{ival=m, ...}) =>
+			    (num (ity, n+n), num (ity, m))
+			| (NUM{ival, ...}, _) =>
+			    (num (ity, ival+ival), untag (signed, comp v2))
+			| (_, NUM{ival, ...}) =>
+			    (untag (signed, comp v1), num (ity, ival+ival))
 			| _ => (stripTag (comp v1), untag (signed, comp v2))
 		      (* end case *))
 		in
@@ -91,11 +94,11 @@ structure TaggedArith : sig
 		end
 	    | (QUOT, [v1, v2]) => let
 		val e1 = (case v1
-		       of NUM{ival, ...} => num ival
+		       of NUM{ival, ...} => num (ity, ival)
 			| _ => untag (signed, comp v1)
 		      (* end case *))
 		val e2 = (case v2
-		       of NUM{ival, ...} => num ival
+		       of NUM{ival, ...} => num (ity, ival)
 			| _ => untag (signed, comp v2)
 		      (* end case *))
 		in
@@ -103,11 +106,11 @@ structure TaggedArith : sig
 		end
 	    | (REM, [v1, v2]) => let
 		val e1 = (case v1
-		       of NUM{ival, ...} => num ival
+		       of NUM{ival, ...} => num (ity, ival)
 			| _ => untag (signed, comp v1)
 		      (* end case *))
 		val e2 = (case v2
-		       of NUM{ival, ...} => num ival
+		       of NUM{ival, ...} => num (ity, ival)
 			| _ => untag (signed, comp v2)
 		      (* end case *))
 		in
@@ -115,24 +118,24 @@ structure TaggedArith : sig
 		end
 	    | (NEG, [v]) => pureOp (P.SUB, ity, [two, comp v])
 	    | (LSHIFT, [v1, NUM{ival, ...}]) =>
-		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), num ival]))
+		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), num (ity, ival)]))
 	    | (LSHIFT, [NUM{ival, ...}, v2]) =>
-		addTag (pureOp (P.SHL, ity, [num(ival+ival), comp v2]))
+		addTag (pureOp (P.SHL, ity, [num (ity, ival+ival), comp v2]))
 	    | (LSHIFT, [v1, v2]) =>
 		addTag (pureOp (P.SHL, ity, [stripTag(comp v1), comp v2]))
 	    | (RSHIFT, [v1, NUM{ival, ...}]) =>
-		orTag (pureOp (P.ASHR, ity, [comp v1, num ival]))
+		orTag (pureOp (P.ASHR, ity, [comp v1, num (ity, ival)]))
 	    | (RSHIFT, [v1, v2]) =>
 		orTag (pureOp (P.ASHR, ity, [comp v1, comp v2]))
 	    | (RSHIFTL, [v1, NUM{ival, ...}]) =>
-		orTag (pureOp (P.LSHR, ity, [comp v1, num ival]))
+		orTag (pureOp (P.LSHR, ity, [comp v1, num (ity, ival)]))
 	    | (RSHIFTL, [v1, v2]) =>
 		orTag (pureOp (P.LSHR, ity, [comp v1, comp v2]))
 	    | (ORB, [v1, v2]) => pureOp (P.ORB, ity, [comp v1, comp v2])
 	    | (XORB, [NUM{ival, ...}, v2]) =>
-		pureOp (P.XORB, ity, [num (ival+ival), comp v2])
+		pureOp (P.XORB, ity, [num (ity, ival+ival), comp v2])
 	    | (XORB, [v1, NUM{ival, ...}]) =>
-		pureOp (P.XORB, ity, [comp v1, num (ival+ival)])
+		pureOp (P.XORB, ity, [comp v1, num (ity, ival+ival)])
 	    | (XORB, [v1, v2]) =>
 		addTag (pureOp (P.XORB, ity, [comp v1, comp v2]))
 	    | (ANDB, [v1, v2]) => pureOp (P.ANDB, ity, [comp v1, comp v2])
@@ -140,7 +143,7 @@ structure TaggedArith : sig
 	      (* xor with mask that is all ones for sz bits, but 0 for the tag *)
 		val mask = IntInf.<<(1, Word.fromInt sz + 0w1) - 2
 		in
-		  pureOp (P.XORB, ity, [comp v, num mask])
+		  pureOp (P.XORB, ity, [comp v, num (ity, mask)])
 		end
             | (CNTPOP, [v]) =>
                 (* untag argument and then count ones *)
@@ -149,7 +152,7 @@ structure TaggedArith : sig
                 (* for smaller sizes, we need to adjust the result *)
                 then pureOp (P.SUB, ity, [
                     pureOp (P.CNTLZ, ity, [zExt(sz, ity, comp v)]),
-                    num(IntInf.fromInt(Target.defaultTaggedIntSz - sz))
+                    num (ity, IntInf.fromInt(Target.defaultTaggedIntSz - sz))
                   ])
                 (* for default ints, the tagging does not affect the
                  * leading-zero count; plus we know that the argument is not zero!
@@ -159,7 +162,7 @@ structure TaggedArith : sig
                 (* CNTTZ(v) == CNTTZ((1 << sz) | (v >> 1)) *)
                 then pureOp(P.CNTTZ, ity, [
                     pureOp(P.ORB, ity, [
-                        num(IntInf.<<(1, Word.fromInt sz)),
+                        num (ity, IntInf.<<(1, Word.fromInt sz)),
                         untagUInt (comp v)
                       ])
                   ])
@@ -192,11 +195,11 @@ structure TaggedArith : sig
 		val tmp2 = LambdaVar.mkLvar()
 		val exp = (case (a, b)
 		       of (NUM{ival=m, ...}, NUM{ival=n, ...}) =>
-			    pureOp(oper, ity, [num m, num n])
+			    pureOp(oper, ity, [num (ity, m), num (ity, n)])
 			| (NUM{ival, ...}, b) =>
-			    pureOp(oper, ity, [num ival, untagInt(comp b)])
+			    pureOp(oper, ity, [num (ity, ival), untagInt(comp b)])
 			| (a, NUM{ival, ...}) =>
-			    pureOp(oper, ity, [untagInt(comp a), num ival])
+			    pureOp(oper, ity, [untagInt(comp a), num (ity, ival)])
 			| (a, b) =>
 			    pureOp(oper, ity, [untagInt(comp a), untagInt(comp b)])
 		      (* end case *))
@@ -207,21 +210,24 @@ structure TaggedArith : sig
 		end
 	  in
 	    case (rator, args)
-	     of (IADD, [NUM{ival, ...}, b]) => continue (P.IADD, [num(ival+ival), comp b])
-	      | (IADD, [a, NUM{ival, ...}]) => continue (P.IADD, [comp a, num(ival+ival)])
+		     of (IADD, [NUM{ival, ...}, b]) =>
+			  continue (P.IADD, [num (ity, ival+ival), comp b])
+		      | (IADD, [a, NUM{ival, ...}]) =>
+			  continue (P.IADD, [comp a, num (ity, ival+ival)])
 	      | (IADD, [a, b]) => continue (P.IADD, [comp a, stripTag(comp b)])
 	      | (ISUB, [NUM{ival, ...}, b]) =>
                   if (ival = maxInt)
-                    then continue (P.ISUB, [num(ival+ival+1), stripTag(comp b)])
-                    else continue (P.ISUB, [num(ival+ival+2), comp b])
-	      | (ISUB, [a, NUM{ival, ...}]) => continue (P.ISUB, [comp a, num(ival+ival)])
+			    then continue (P.ISUB, [num (ity, ival+ival+1), stripTag(comp b)])
+			    else continue (P.ISUB, [num (ity, ival+ival+2), comp b])
+		      | (ISUB, [a, NUM{ival, ...}]) =>
+			  continue (P.ISUB, [comp a, num (ity, ival+ival)])
 	      | (ISUB, [a, b]) => tagResult (P.ISUB, [comp a, comp b])
 	      | (IMUL, [NUM{ival=m, ...}, NUM{ival=n, ...}]) =>
-		  tagResult (P.IMUL, [num(m+m), num n])
+		  tagResult (P.IMUL, [num (ity, m+m), num (ity, n)])
 	      | (IMUL, [NUM{ival, ...}, b]) =>
-		  tagResult (P.IMUL, [num(ival+ival), untagInt(comp b)])
+		  tagResult (P.IMUL, [num (ity, ival+ival), untagInt(comp b)])
 	      | (IMUL, [a, NUM{ival, ...}]) =>
-		  tagResult (P.IMUL, [untagInt(comp a), num(ival+ival)])
+		  tagResult (P.IMUL, [untagInt(comp a), num (ity, ival+ival)])
 	      | (IMUL, [a, b]) =>
 		  tagResult (P.IMUL, [stripTag(comp a), untagInt(comp b)])
 	      | (IQUOT, [a, b]) => divOp (P.SDIV, a, b)

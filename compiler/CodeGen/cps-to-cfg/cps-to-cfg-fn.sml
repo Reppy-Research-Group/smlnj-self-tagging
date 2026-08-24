@@ -61,19 +61,18 @@ functor CPStoCFGFn (MS : MACH_SPEC) : sig
     val BOGty = CPSUtil.BOGt
 
   (* CFG integer constants *)
-    fun num iv = C.NUM{iv = iv, sz = ity}
-    fun num' iv = C.NUM{iv = IntInf.fromInt iv, sz = ity}
-    fun szNum sz iv = C.NUM{iv = iv, sz = sz}
-    fun w2Num iv = num(Word.toLargeInt iv)
-    fun mlInt' n = num(n+n+1)
+    fun num (sz, iv) = C.NUM{iv = iv, sz = sz}
+    fun num' (sz, iv) = num (sz, IntInf.fromInt iv)
+    fun w2Num iv = num (ity, Word.toLargeInt iv)
+    fun mlInt' n = num (ity, n+n+1)
     fun mlInt n = mlInt'(IntInf.fromInt n)
 
   (* some useful constants *)
-    fun zero sz = szNum sz 0
-    val one = num 1
-    val two = num 2
-    fun allOnes sz = num(ConstArith.bNot(sz, 0)) (* sz-wide 1's *)
-    val signBit = num(IntInf.<<(1, Word.fromInt ity - 0w1))
+    fun zero sz = num (sz, 0)
+    val one = num (ity, 1)
+    val two = num (ity, 2)
+    fun allOnes sz = num (sz, ConstArith.bNot(sz, 0)) (* sz-wide 1's *)
+    val signBit = num (ity, IntInf.<<(1, Word.fromInt ity - 0w1))
 
 (* FIXME: add support for branch probabilities *)
   (* unknown branch probability *)
@@ -132,7 +131,7 @@ C.NUMt{sz=sz}
 
   (* get the descriptor of a heap object *)
     fun getDescriptor obj =
-	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num'(~ws)])
+	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num' (ity, ~ws)])
 
   (* get length field of a heap object as a native integer *)
     (* fun getObjLength obj = *)
@@ -206,7 +205,7 @@ C.NUMt{sz=sz}
 	  fun genV (VAR x) = binding x
 	    | genV (LABEL lab) = label lab
 	    | genV (NUM{ty={tag=true, ...}, ival}) = mlInt' ival
-	    | genV (NUM{ty={sz, ...}, ival}) = szNum sz ival
+	    | genV (NUM{ty={sz, ...}, ival}) = num (sz, ival)
 	    | genV (ENUM i) = mlInt'(IntInf.fromInt i)
 	    | genV v = error ["gen.genV: unexepected ", PPCps.value2str v]
 	  val genPureTagged = TaggedArith.pure genV
@@ -340,7 +339,7 @@ C.NUMt{sz=sz}
 			    | (P.IMUL, args) => arith (TP.IMUL, args)
 			    | (P.IQUOT, args) => arith (TP.IDIV, args)
 			    | (P.IREM, args) => arith (TP.IREM, args)
-			    | (P.INEG, [a]) => arith (TP.ISUB, [szNum sz 0, a])
+			    | (P.INEG, [a]) => arith (TP.ISUB, [num (sz, 0), a])
 			    | _ => error ["bogus ", PPCps.arithopToString oper]
 			  (* end case *)
 			end
@@ -350,11 +349,11 @@ C.NUMt{sz=sz}
 		  | PURE(P.MKSPECIAL, [i, v], x, _, k) => let
 		      val desc = (case i
 			     of NUM{ty={tag=true, ...}, ival} =>
-				  num (D.makeDesc(ival, D.tag_special))
+				  num (ity, D.makeDesc(ival, D.tag_special))
 			      | _ => (* desc = (i << tagWidth) | desc_special *)
 				pureOp (TP.ORB, ity, [
 				    pureOp (TP.SHL, ity, [genV i, w2Num D.tagWidth]),
-				    num D.desc_special
+				    num (ity, D.desc_special)
 				  ])
 			    (* end case *))
 		      in
@@ -458,11 +457,11 @@ C.NUMt{sz=sz}
 (* REAL32: FIXME *)
                  of CPS.FLTt 64 => C.SETTER(
                       TP.RAW_UPDATE{kind=TP.FLT, sz=64},
-                      [genV r, num ival, genV v],
+                      [genV r, num (ity, ival), genV v],
                       k)
                   | _ => C.SETTER(
                       TP.RAW_UPDATE{kind=TP.INT, sz=ity},
-                      [genV r, num ival, genV v],
+                      [genV r, num (ity, ival), genV v],
                       k)
                 (* end case *))
             | genRawUpdate _ = error ["bogus RAWUPDATE"]
@@ -505,15 +504,15 @@ C.NUMt{sz=sz}
 		      fun set desc =
 			    C.SETTER(
 			      TP.RAW_STORE{kind=TP.INT, sz=ity},
-			      [genV v, num'(~ws), desc],
+			      [genV v, num' (ity, ~ws), desc],
 			      k)
 		      in
 			case i
 			 of NUM{ty={tag=_, ...}, ival} =>
-			      set (num (D.makeDesc(ival, D.tag_special)))
+			      set (num (ity, D.makeDesc(ival, D.tag_special)))
 			  | _ => set (pureOp(TP.ORB, ity, [
 				pureOp(TP.SHL, ity, [genV i, w2Num D.tagWidth]),
-				num D.desc_special
+				num (ity, D.desc_special)
 			      ]))
 			(* end case *)
 		      end
@@ -550,9 +549,8 @@ C.NUMt{sz=sz}
 			then genPureTagged (oper, true, sz, vs)
 			else let
                           fun binOp (rator, a, b) = pureOp (rator, sz, [genV a, genV b])
-                        (* note that the shift amount is always a native word value *)
                           fun shiftOp (rator, a, b) =
-                                pureOp (rator, sz, [genV a, genV b])
+                                pureOp (rator, sz, [genV a, shiftAmt(sz, b)])
                           in
                             case (oper, vs)
                              of (P.NEG, [v]) => pureOp (TP.SUB, sz, [zero sz, genV v])
@@ -575,9 +573,8 @@ C.NUMt{sz=sz}
 			then genPureTagged (oper, false, sz, vs)
 			else let
                           fun binOp (rator, a, b) = pureOp (rator, sz, [genV a, genV b])
-                        (* note that the shift amount is always a native word value *)
                           fun shiftOp (rator, a, b) =
-                                pureOp (rator, sz, [genV a, genV b])
+                                pureOp (rator, sz, [genV a, shiftAmt(sz, b)])
                           fun widen arg =
                                 if (sz < ity) then zExt(sz, ity, arg) else arg
                           fun countOp (rator, v) =
@@ -602,14 +599,14 @@ C.NUMt{sz=sz}
                                   if (sz < ity)
                                     then pureOp (TP.SUB, ity, [
                                         countOp (TP.CNTLZ, v),
-                                        num(IntInf.fromInt(ity - sz))
+                                        num (ity, IntInf.fromInt(ity - sz))
                                       ])
                                     else countOp (TP.CNTLZ, v)
                               | (P.CNTTZ, [v]) =>
                                   if (sz < ity)
                                     then pureOp(TP.CNTTZ, ity, [
                                         pureOp(TP.ORB, ity, [
-                                            num(IntInf.<<(1, Word.fromInt sz)),
+                                            num (ity, IntInf.<<(1, Word.fromInt sz)),
                                             widen (genV v)
                                           ])
                                       ])
@@ -697,14 +694,14 @@ C.NUMt{sz=sz}
                                  * bits *)
                                 val mask = IntInf.<<(1, Word.fromInt(to+1)) - 1
                                 in
-                                  pureOp(TP.ANDB, ity, [genV v, num mask])
+                                  pureOp(TP.ANDB, ity, [genV v, num (ity, mask)])
                                 end
                             | (false, true) => let
                                 (* truncate then tag *)
                                 val mask = IntInf.<<(1, Word.fromInt(to+1)) - 1
                                 in
                                   tag (
-                                    pureOp(TP.ANDB, ity, [genV v, num mask]))
+                                    pureOp(TP.ANDB, ity, [genV v, num (ity, mask)]))
                                 end)
 		  | (P.INT_TO_REAL{from, to}, [v]) => let
 		      val e = if isTaggedInt from
@@ -723,7 +720,7 @@ C.NUMt{sz=sz}
 		  | (P.GETTAG, [v]) =>
 		      pureOp (TP.ANDB, ity, [
 			  getDescriptor(genV v),
-			  num(D.powTagWidth-1)
+			  num (ity, D.powTagWidth-1)
 			])
 		  | (P.CAST, [v]) => genV v
 		  | (P.GETCON, [v]) => select(0, genV v)
@@ -817,13 +814,33 @@ C.NUMt{sz=sz}
                   else genRawSubscript (TP.INT, sz, vec, idx)
           and untag (true, e) = pureOp (TP.ASHR, ity, [e, one])
             | untag (false, e) = pureOp (TP.LSHR, ity, [e, one])
-	  and untagSigned (NUM{ty={tag=true, ...}, ival, ...}) = num ival
+	  and untagSigned (NUM{ty={tag=true, ...}, ival, ...}) = num (ity, ival)
 	    | untagSigned (NUM _) = error["unexpected untagged integer"]
 	    | untagSigned v = untag (true, genV v)
-	  and untagUnsigned (NUM{ty={tag=true, ...}, ival, ...}) = num ival
+	  and untagUnsigned (NUM{ty={tag=true, ...}, ival, ...}) = num (ity, ival)
 	    | untagUnsigned (NUM _) = error["unexpected untagged integer"]
 	    | untagUnsigned v = untag (false, genV v)
-	  and trunc (sz, _, NUM{ival, ...}) = C.NUM{iv=ival, sz=sz}
+	(* LLVM requires the shift amount to have the same width as the shifted
+	 * value.  Shift amounts enter CPS as native words, so narrow them here
+	 * when lowering shifts and rotates on smaller native integers.
+	 *)
+	  and shiftAmt (sz, v) = (case typeOfVal v
+		 of CPS.NUMt{sz=from, tag=true} => let
+		      val v' = untagUnsigned v
+		      in
+			if (sz = ity)
+			  then v'
+			  else pure(TP.TRUNC{from=ity, to=sz}, [v'])
+		      end
+		  | CPS.NUMt{sz=from, tag=false} =>
+		      if (from = sz)
+			then genV v
+		      else if (from < sz)
+			then zExt(from, sz, genV v)
+			else pure(TP.TRUNC{from=from, to=sz}, [genV v])
+		  | _ => error["non-numeric shift amount"]
+		(* end case *))
+	  and trunc (sz, _, NUM{ival, ...}) = num (sz, ival)
 	    | trunc (sz, true, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
 	    | trunc (sz, false, v) = pure(TP.TRUNC{from=ity, to=sz}, [genV v])
 	(* convert a raw integer value to a tagged integer w/o trapping *)
