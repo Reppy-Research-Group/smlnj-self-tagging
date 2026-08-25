@@ -40,7 +40,7 @@ structure SMLNJVersion : sig
     val version = {
 	    system = "Standard ML of New Jersey",
 	    version_id = [2026, 2],
-	    suffix = "",
+	    suffix = "st",
 	    releaseDate = releaseDate
           }
 

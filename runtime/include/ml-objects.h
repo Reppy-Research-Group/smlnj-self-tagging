@@ -30,15 +30,9 @@
 #endif
 
 
-
-
-
 STATIC_INLINE ml_val_t ML_AllocInt64 (ml_state_t *msp, Int64_t n);
 #define INT_MLtoC(n)		(*PTR_MLtoC(Int64_t, n))
 #define INT_CtoML(n)		(ML_AllocInt64(msp, n))
-
-
-
 
 
 /* extract info from objects */

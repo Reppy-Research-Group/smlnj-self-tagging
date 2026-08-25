@@ -68,6 +68,7 @@ void Die (const char *fmt, ...)
     fprintf (stderr, "\n");
     va_end(ap);
 
+//    Exit (1);
     abort();
 
 } /* end of Die */
