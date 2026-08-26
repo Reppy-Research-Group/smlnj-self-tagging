@@ -131,7 +131,7 @@ C.NUMt{sz=sz}
 
   (* get the descriptor of a heap object *)
     fun getDescriptor obj =
-	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num' (ity, ~ws)])
+	  looker(TP.RAW_LOAD{kind=TP.INT, sz=ity}, [obj, num'(ity, ~ws)])
 
   (* get length field of a heap object as a native integer *)
     (* fun getObjLength obj = *)
@@ -143,24 +143,6 @@ C.NUMt{sz=sz}
     fun getSeqData obj = select(0, obj)
   (* get the length field of a sequence *)
     fun getSeqLen obj = select(1, obj)
-
-    fun rawSelect (kind, sz, i, arg) = let
-           val v = pure(
-             TP.RAW_SELECT{kind = kind, sz = sz, offset = i * (sz div 8)},
-             [arg])
-           in
-             if (normSz sz < ity)
-               then pure(TP.TRUNC{from=ity, to=sz}, [v])
-               else v
-           end
-
-    fun recordSelect (sz, i, arg) = let
-          val v = select (i, arg)
-          in
-            if (normSz sz < ity)
-              then pure(TP.TRUNC{from=ity, to=sz}, [v])
-              else v
-          end
 
   (* translate CPS RAWLOAD primop based on kind *)
     fun rawLoad (P.INT sz, args) = let
@@ -219,7 +201,7 @@ C.NUMt{sz=sz}
 		 of RECORD(CPS.RK_VECTOR, flds, x, k) => let
 		    (* A vector has a data record and a header record *)
 		      val len = length flds
-		      val dataDesc = D.makeDesc'(len, D.tag_vec_data)
+		      val dataDesc = D.makeDesc(len, D.tag_vec_data)
 		      val dataP = LV.mkLvar()
 		      in
 			allocRecord (dataDesc, flds, dataP,
@@ -232,13 +214,25 @@ C.NUMt{sz=sz}
 (* REAL32: FIXME *)
 		  | RECORD(CPS.RK_RAWBLOCK, flds, x, k) =>
                       allocRawRecord (TP.INT, flds, x, k)
+                  | RECORD(CPS.RK_MIXED rep, flds, x, k) =>
+                      allocRecord (D.makeMixedDesc rep, flds, x, bindVarIn(x, k))
 		  | RECORD(_, flds, x, k) => allocRecord (
-		      D.makeDesc' (length flds, D.tag_record),
+		      D.makeDesc (length flds, D.tag_record),
 		      flds, x, bindVarIn(x, k))
-		  | SELECT(i, v, x, ty as CPS.NUMt{sz, ...}, k) =>
-		      genCont (recordSelect(sz, i, genV v), x, ty, k)
-		  | SELECT(i, v, x, ty as CPS.FLTt sz, k) =>
-		      genCont (rawSelect(TP.FLT, sz, i, genV v), x, ty, k)
+		  | SELECT(i, v, x, ty as CPS.NUMt{sz, ...}, k) => let
+                      val sel = if (normSz sz < ity)
+                            then pure(TP.TRUNC{from=ity, to=sz}, [select (i, genV v)])
+                            else select (i, genV v)
+                      in
+                        genCont (sel, x, ty, k)
+                      end
+		  | SELECT(i, v, x, ty as CPS.FLTt sz, k) => let
+                      val sel = pure(
+                            TP.RAW_SELECT{kind = TP.FLT, sz = sz, offset = i * (sz div 8)},
+                            [genV v])
+                      in
+                        genCont (sel, x, ty, k)
+                      end
 		  | SELECT(i, v, x, ty, k) =>
 		      genCont (select(i, genV v), x, ty, k)
 		  | OFFSET(i, v, x, k) => raise Fail "unexpected OFFSET"
@@ -349,7 +343,7 @@ C.NUMt{sz=sz}
 		  | PURE(P.MKSPECIAL, [i, v], x, _, k) => let
 		      val desc = (case i
 			     of NUM{ty={tag=true, ...}, ival} =>
-				  num (ity, D.makeDesc(ival, D.tag_special))
+				  num (ity, D.makeDesc'(ival, D.tag_special))
 			      | _ => (* desc = (i << tagWidth) | desc_special *)
 				pureOp (TP.ORB, ity, [
 				    pureOp (TP.SHL, ity, [genV i, w2Num D.tagWidth]),
@@ -371,7 +365,7 @@ C.NUMt{sz=sz}
 			then error ["wrap for tagged ints is not implemented"]
                         else if sz <= ity
                           then let
-                            val desc = D.makeDesc'(1, D.tag_raw)
+                            val desc = D.makeDesc(1, D.tag_raw)
                             val oper = rawRecord (desc, TP.INT, 1)
                             val arg = if sz < ity
                               then zeroExtend (sz, genV v)
@@ -387,7 +381,7 @@ C.NUMt{sz=sz}
 		  | PURE(P.WRAP(P.FLOAT 32), [v], x, _, k) => (* REAL32: FIXME *)
 		      error ["wrap for 32-bit floats is not implemented"]
 		  | PURE(P.WRAP(P.FLOAT 64), [v], x, _, k) => let
-		      val desc = D.makeDesc'(1, D.tag_raw)
+		      val desc = D.makeDesc(1, D.tag_raw)
 		      val oper = rawRecord (desc, TP.FLT, 1)
 		      in
 			C.ALLOC(oper, [genV v], x, bindVarIn(x, k))
@@ -395,7 +389,7 @@ C.NUMt{sz=sz}
 		  | PURE(P.RAWRECORD rk, [NUM{ty={tag=true, ...}, ival}], x, _, k) =>
 		      let
 		      val n = Int.fromLarge ival (* number of elements *)
-		      fun mkDesc (n, tag) = SOME(D.makeDesc' (n, tag))
+		      fun mkDesc (n, tag) = SOME(D.makeDesc (n, tag))
 		      val (desc, scale) = (case rk
 			     of NONE => (NONE, MS.valueSize)
 			      | SOME CPS.RK_FCONT =>
@@ -446,7 +440,7 @@ C.NUMt{sz=sz}
 	(* Allocate a record with raw machine-int-sized components *)
 	  and allocRawRecord (kind, fields, x, k) = let
 		val len = length fields
-		val desc = D.makeDesc'(len, D.tag_raw)
+		val desc = D.makeDesc(len, D.tag_raw)
 		val oper = rawRecord (desc, kind, len)
 		in
 		  C.ALLOC(oper, List.map getField fields, x, bindVarIn(x, k))
@@ -504,7 +498,7 @@ C.NUMt{sz=sz}
 		      in
 			case i
 			 of NUM{ty={tag=_, ...}, ival} =>
-			      set (num (ity, D.makeDesc(ival, D.tag_special)))
+			      set (num (ity, D.makeDesc'(ival, D.tag_special)))
 			  | _ => set (pureOp(TP.ORB, ity, [
 				pureOp(TP.SHL, ity, [genV i, w2Num D.tagWidth]),
 				num (ity, D.desc_special)

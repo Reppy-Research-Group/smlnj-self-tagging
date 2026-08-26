@@ -1,6 +1,6 @@
 (* invoke-gc.sml
  *
- * COPYRIGHT (c) 2020 The Fellowship of SML/NJ (http://www.smlnj.org)
+ * COPYRIGHT (c) 2026 The Fellowship of SML/NJ (https://smlnj.org)
  * All rights reserved.
  *
  * Support for adding garbage-collection invocation code to the CFG.
@@ -90,46 +90,59 @@ structure InvokeGC : sig
     fun var x = C.VAR{name = x}
     val unit = C.NUM{iv = 1, sz = Target.mlValueSz}
     fun record desc = P.RECORD{desc=desc, mut=false}
-    fun rawSelect (nk, sz, n, rr) = C.PURE{
-	    oper = P.RAW_SELECT{kind=nk, sz=sz, offset=n},
+
+  (* select from a raw or mixed record *)
+    fun rawSelect (P.INT, sz, offset, rr) = let
+          val oper = C.PURE{
+                  oper = P.RAW_SELECT{kind=P.INT, sz=sz, offset=offset},
+                  args = [rr]
+                }
+          in
+            if (sz = 64)
+              then oper
+              else C.PURE{oper = P.TRUNC{from=64, to=sz}, args = [oper]}
+          end
+      | rawSelect (P.FLT, sz, offset, rr) = C.PURE{
+	    oper = P.RAW_SELECT{kind=P.FLT, sz=sz, offset=offset},
 	    args = [rr]
 	  }
-    fun extend (signed, from, to, arg) =
-	  if (from = to)
+
+    fun extend (signed, sz, arg) =
+	  if (sz = 64)
 	    then arg
 	    else C.PURE{
-	      oper = P.EXTEND{signed=signed, from=from, to=to},
+	      oper = P.EXTEND{signed=signed, from=sz, to=64},
 	      args = [arg]
 	    }
-    fun trunc (from, to, arg) =
-	  if (from = to)
-	    then arg
-	    else C.PURE{
-	      oper = P.TRUNC{from=from, to=to},
-	      args = [arg]
-	    }
-    fun rawStoreSz (P.INT, sz) = if (sz < 32) then 32 else sz
-      | rawStoreSz (P.FLT, sz) = sz
+
+  (* index into the list of GC parameters *)
+    type index = int
 
   (* representation of what a GC root holds *)
     datatype root
-      = Unit			(* initialized to "()" *)
-      | Boxed of int		(* boxed live value with index *)
-      | Record of root list	(* elements are Param or Raw only *)
-      | Raw of (int * P.numkind * int) list * (int * P.numkind * int) list
+      = Unit			                (* initialized to "()" *)
+      | Ptr of index		                (* pointer value *)
+      | Record of {
+          roots : index list,                   (* pointer parameters *)
+          raw : (index * P.numkind * int) list  (* raw parameters: (idx, kind, sz) *)
+        }
 
 (* DEBUG
 fun roots2s roots = concat["[", String.concatWithMap "," root2s roots, "]"]
 and root2s Unit = "()"
-  | root2s (Boxed i) = "param" ^ Int.toString i
-  | root2s (Record roots) = roots2s roots
-  | root2s (Raw(raw32, raw64)) = let
-      fun toS (ix, nk, sz) = concat[
+  | root2s (Ptr i) = "param" ^ Int.toString i
+  | root2s (Record{roots, raw}) = let
+      fun rawToS (ix, nk, sz) = concat[
 	      "param", Int.toString ix, ":", PPCfg.numkindToString(nk, sz)
 	    ]
-      val flds = List.map toS raw32 @ List.map toS raw64
       in
-	concat ["<|", String.concatWith "," flds, "|>"]
+	concat [
+            "<|",
+            String.concatWithMap "," (fn ix => "param" ^ Int.toString i) roots,
+            ";"
+            String.concatWithMap "," rawToS flds,
+            "|>"
+          ]
       end
 fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
 *)
@@ -142,60 +155,66 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
   (* given the list of live variables with types and size, assign the GC root
    * layout.
    *)
-    fun assignRoots (isCont, params) = let
-	    fun split (ix, {name, ty} :: params, boxed, raw32, raw64) = let
-		fun doRaw (P.INT, sz) =
-		      if (sz <= 32)
-			then split (ix+1, params, boxed, (ix, P.INT, sz)::raw32, raw64)
-		      else if (sz = 64)
-			then split (ix+1, params, boxed, raw32, (ix, P.INT, sz)::raw64)
-		      else error ["split: unexpected raw type ", CFGUtil.tyToString ty]
-		  | doRaw (P.FLT, 32) =
-		      split (ix+1, params, boxed, (ix, P.FLT, 32)::raw32, raw64)
-		  | doRaw (P.FLT, 64) =
-		      split (ix+1, params, boxed, raw32, (ix, P.FLT, 64)::raw64)
-		  | doRaw _ = error ["split: unexpected raw type ", CFGUtil.tyToString ty]
+    fun assignRoots (isCont, params : CFG.param list) = let
+	  fun split (ix, {name, ty} :: params, boxed, raw) = let
+		fun doRaw (kind, sz) = split (ix+1, params, boxed, (ix, kind, sz)::raw)
 		in
 		  case ty
 		   of C.NUMt{sz} => doRaw (P.INT, sz)
 		    | C.FLTt{sz} => doRaw (P.FLT, sz)
-		    | _ => split (ix+1, params, Boxed ix::boxed, raw32, raw64)
+		    | _ => split (ix+1, params, ix::boxed, raw)
 		  (* end case *)
 		end
-	    | split (ix, [], boxed, raw32, raw64) =
-		{n=ix, boxed=List.rev boxed, raw32=List.rev raw32, raw64=List.rev raw64}
-	  val {n, boxed, raw32, raw64} = split (0, params, [], [], [])
-	  val nBoxed = length boxed
-	  val (rawObj, nBoxed) = (case (raw32, raw64)
-		 of ([], []) => (Unit, nBoxed)
-		  | _ => (Raw(raw32, raw64), nBoxed+1)
-		(* end case *))
-	  val nExcess = nBoxed - numGCRoots
-	  val boxed = if (nExcess > 0)
-		then let
-		  val (boxed, excess) = List.splitAt (boxed, numGCRoots-1)
-		  in
-		    case rawObj
-		     of Unit => boxed @ [Record excess]
-		      | _ => boxed @ [Record(rawObj::excess)]
-		    (* end case *)
-		  end
-		else (case rawObj
-		   of Unit => boxed
-		    | _ => boxed @ [rawObj]
-		  (* end case *))
+	    | split (ix, [], boxed, raw) =
+		{n=ix, boxed=List.rev boxed, raw=List.rev raw}
+	  val {n, boxed, raw} = split (0, params, [], [])
+          val nBoxed = length boxed
+          val nRaw = length raw
 	(* assign roots; note that to avoid register shuffling, we use a different
 	 * order for STD_CONT tests, where the first parameter is STD_CONT.
 	 *)
 	  val gcRoots = Array.array (numGCRoots, Unit)
-	  fun assign (root::roots, ix::ixs) = (
-		Array.update(gcRoots, ix, root);
-		assign (roots, ixs))
-	    | assign _ = Array.toList gcRoots
-	  in {
-	    nParams = n,
-	    roots = assign (boxed, if isCont then contRootOrder else stdRootOrder)
-	  } end
+          val rootIds = if isCont then contRootOrder else stdRootOrder
+          fun assignBoxed (boxed, extra) = let
+                fun lp (id::ids, ix::ixs) = (
+                      Array.update(gcRoots, id, Ptr ix); lp (ids, ixs))
+                  | lp (ids, []) = (case (ids, extra)
+                       of (id::_, SOME root) => Array.update(gcRoots, id, root)
+                        | (_, NONE) => ()
+                        | _ => raise Fail "too many roots"
+                      (* end case *))
+                  | lp ([], _) = raise Fail "too many roots"
+                in
+                  lp (rootIds, boxed)
+                end
+          in
+          (* cases:
+           *   nRaw = 0 andalso nBoxed <= numGCRoots    then no record
+           *   nRaw = 0 andalso nBoxed > numGCRoots     then record
+           *   nRaw > 0 andalso nBoxed < numGCRoots     then raw record
+           *   nRaw > 0 andalso nBoxed >= numGCRoots    then mixed record
+           *)
+            if (nRaw = 0)
+              then if (nBoxed <= numGCRoots)
+                then assignBoxed(boxed, NONE)
+                else let
+                  val (boxed, excess) = List.splitAt (boxed, numGCRoots-1)
+                  in
+                    assignBoxed (boxed, SOME(Record{roots=excess, raw=[]}))
+                  end
+            else if (nBoxed < numGCRoots)
+              then assignBoxed (boxed, SOME(Record{roots=[], raw=raw}))
+              else let
+                val (boxed, excess) = List.splitAt (boxed, numGCRoots-1)
+                in
+                  assignBoxed (boxed, SOME(Record{roots=excess, raw=raw}))
+                end;
+            { nParams = n, roots = Array.toList gcRoots }
+          end
+handle ex => (
+print(concat["# assignRoots: isCont = ", Bool.toString isCont, ", params = [",
+String.concatWithMap "," PPCfg.paramToString params, "]\n"]);
+raise ex)
 
     fun fromListMap f l = Vector.fromList (List.map f l)
 
@@ -215,118 +234,79 @@ fun prRoots roots = Control.Print.say (concat["Roots = ", roots2s roots, "\n"])
 	  val newRoots = List.tabulate (numGCRoots, fn _ => LV.mkLvar())
 	  fun unpack ([], []) = k (Array.toList results)
 	    | unpack (_::xs, Unit::rs) = unpack (xs, rs)
-	    | unpack (x::xs, Boxed ix::rs) = (
+	    | unpack (x::xs, Ptr ix::rs) = (
 		setResult (ix, var x); unpack (xs, rs))
-	    | unpack (x::xs, Record flds :: rs) =
-		unpackRecord (var x, flds, fn () => unpack(xs, rs))
-	    | unpack (x::xs, Raw(raw32, raw64)::rs) =
-		unpackRaw (var x, raw32, raw64, fn () => unpack(xs, rs))
+	    | unpack (x::xs, Record{roots, raw} :: rs) = let
+                fun select ix = C.SELECT{idx = ix, arg = var x}
+                fun unpackRoots (ix, jx::rs) = (
+                      setResult (jx, select ix);
+                      unpackRoots (ix+1, rs))
+                  | unpackRoots (ix, []) = unpackRaw (ix, raw)
+                and unpackRaw (ix, (jx, nk, sz)::rs) = (
+                      setResult (jx, rawSelect (nk, sz, 8*ix, var x));
+                      unpackRaw (ix+1, rs))
+                  | unpackRaw (_, []) = unpack (xs, rs)
+                in
+                  unpackRoots (0, roots)
+                end
 	    | unpack _ = raise Match
-	(* unpack the record of extra pointers/tagged values *)
-	  and unpackRecord (tplV, flds, k) = let
-		fun select ix = C.SELECT{idx = ix, arg = tplV}
-		fun unpackFlds (ix, Boxed jx :: flds) = (
-		      setResult (jx, select ix); unpackFlds (ix+1, flds))
-		  | unpackFlds (ix, Raw(raw32, raw64) :: flds) =
-		      unpackRaw (select ix, raw32, raw64, fn () =>
-			unpackFlds(ix+1, flds))
-		  | unpackFlds (_, []) = k()
-		  | unpackFlds _ = error ["callGC.unpackRecord: bogus field"]
-		in
-		  unpackFlds (0, flds)
-		end
-	(* unpack the record of raw data *)
-	  and unpackRaw (rExp, raw32, raw64, k) = let
-		fun unpack tplV = let
-		      fun unpack32 (offset, []) = unpack64 (align64 offset, raw64)
-			| unpack32 (offset, (ix, nk, sz)::r) = let
-			    val storeSz = rawStoreSz (nk, sz)
-			    val load = rawSelect (nk, storeSz, offset, tplV)
-			    val result = (case nk
-				   of P.INT => trunc (storeSz, sz, load)
-				    | P.FLT => load
-				  (* end case *))
-			    in
-			      setResult (ix, result);
-			      unpack32 (offset+4, r)
-			    end
-		      and unpack64 (_, []) = k()
-			| unpack64 (offset, (ix, nk, sz)::r) = (
-			    setResult (ix, rawSelect (nk, sz, offset, tplV));
-			    unpack64 (offset+8, r))
-		      in
-			unpack32 (0, raw32)
-		      end
-		in
-		  case rExp
-		   of C.VAR _ => unpack rExp
-		    | _ => let
-			val tpl = LV.mkLvar()
-			in
-			  C.LET(rExp, {name=tpl, ty=C.PTRt}, unpack (var tpl))
-			end
-		  (* end case *)
-		end
 	  val code = unpack (newRoots, roots)
 	(* pack the roots from the live data *)
 	  val live = fromListMap (fn {name, ty} => var name) live
 	  fun getLive ix = Vector.sub(live, ix)
 	  fun pack ([], args) = C.CALLGC(List.rev args, newRoots, code)
 	    | pack (Unit :: rs, args) = pack (rs, unit::args)
-	    | pack (Boxed ix :: rs, args) = pack (rs, Vector.sub(live, ix)::args)
-	    | pack (Record flds :: rs, args) =
-		packRecord (flds, fn arg => pack (rs, arg::args))
-	    | pack (Raw(raw32, raw64) :: rs, args) =
-		packRaw (raw32, raw64, fn arg => pack (rs, arg::args))
-	(* pack the record of extra pointers/tagged values and pass it to `k` *)
-	  and packRecord (flds, k) = let
-		fun packFlds ([], n, args) = let
-		      val desc = D.makeDesc' (n, D.tag_record)
+	    | pack (Ptr ix :: rs, args) = pack (rs, Vector.sub(live, ix)::args)
+            | pack (Record{roots, raw=[]} :: rs, args) = let
+                fun packRoots ([], n, flds) = let
+		      val desc = D.makeDesc (n, D.tag_record)
 		      val tpl = LV.mkLvar()
 		      in
-			C.ALLOC(record desc, List.rev args, tpl,
-			  k (var tpl))
+			C.ALLOC(record desc, List.rev flds, tpl,
+			  pack (rs, var tpl :: args))
 		      end
-		  | packFlds (Boxed ix :: flds, n, args) =
-		      packFlds (flds, n+1, getLive ix :: args)
-		  | packFlds (Raw(raw32, raw64) :: flds, n, args) =
-		      packRaw (raw32, raw64, fn arg => packFlds (flds, n+1, arg::args))
-		  | packFlds _ = error ["callGC.packRecord: bogus field"]
-		in
-		  packFlds (flds, 0, [])
-		end
-	(* pack the record of raw data and pass it to `k` *)
-	  and packRaw (raw32, raw64, k) = let
+                  | packRoots (ix::ixs, n, flds) =
+		      packRoots (ixs, n+1, getLive ix :: flds)
+                in
+                  packRoots (roots, 0, [])
+                end
+            | pack (Record{roots=[], raw} :: rs, args) = let
 		val tpl = LV.mkLvar()
-		val n32 = List.length raw32
-		val n64 = List.length raw64
-		val (nWords, tag) = if Target.is64
-		        then (align64 (4*n32) div 8 + n64, D.tag_raw)
-(* Old code for 32-bit systems
-		      else if (n64 = 0)
-			then (n32, D.tag_raw)
-			else (2 * (align64 (4*n32) div 8 + n64), D.tag_raw)
-*)
-                        else raise Fail "32-bit systems are not supported"
-		val desc = D.makeDesc' (nWords, tag)
-		val (flds, args) = let
-		      fun get ((ix, nk, sz), (flds, args)) = let
-			    val storeSz = rawStoreSz (nk, sz)
-			    val arg = (case nk
-				   of P.INT => extend (false, sz, storeSz, getLive ix)
-				    | P.FLT => getLive ix
-				  (* end case *))
-			    in
-			      ({kind=nk, sz=storeSz}::flds, arg::args)
-			    end
+		val nWords = List.length raw
+		val desc = D.makeDesc (nWords, D.tag_raw)
+		val (tys, flds) = let
+		      fun get ((ix, nk, sz), (tys, flds)) = (case nk
+                             of P.INT => let
+                                  val arg = extend (false, sz, getLive ix)
+                                  in
+                                    ({kind=nk, sz=64}::tys, arg :: flds)
+                                  end
+(* REAL32: FIXME *)
+                              | P.FLT => ({kind=nk, sz=64}::tys, getLive ix :: flds)
+                            (* end case *))
 		      in
-			List.foldr get (List.foldr get ([], []) raw64) raw32
+			List.foldr get ([], []) raw
 		      end
-		val align = if (n64 > 0) then 8 else 4
 		in
-		  C.ALLOC(P.RAW_RECORD{desc=desc, align=align, fields=flds}, args, tpl,
-		    k (var tpl))
+		  C.ALLOC(P.RAW_RECORD{desc=desc, align=64, fields=tys}, flds, tpl,
+		    pack (rs, var tpl :: args))
 		end
+            | pack (Record{roots, raw} :: rs, args) = let
+                fun packRoots (ix::ixs, flds) = packRoots (ixs, getLive ix :: flds)
+                  | packRoots ([], flds) = packRaw (raw, flds)
+                and packRaw ((ix, _, _)::rr, flds) = packRaw (rr, getLive ix :: flds)
+                  | packRaw ([], flds) = let
+                      val ptrLen = List.length roots
+                      val rawLen = List.length raw
+                      val desc = D.makeMixedDesc {ptrLen = ptrLen, rawLen = rawLen}
+                      val tpl = LV.mkLvar()
+                      in
+                        C.ALLOC(record desc, List.rev flds, tpl,
+                          pack (rs, var tpl :: args))
+		      end
+                in
+                  packRoots (roots, [])
+                end
 	  val code = pack (roots, [])
 	  in
 	    code
