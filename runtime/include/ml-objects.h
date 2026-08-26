@@ -134,9 +134,6 @@ STATIC_INLINE ml_val_t ML_AllocSeqHdr (ml_state_t *msp, ml_val_t desc, ml_val_t 
     p[0] = desc;
     p[1] = data;
     p[2] = ENUM_CtoML(len); /* DEFAULT64: manually tagging this */
-    if ((Int64_t) len >= (1ll << 32)) {
-         Die("Seq too long: desc=%p, data=%p, len=%d\n", (void *)desc, (void *)data, len);
-    }
     return ML_Alloc(msp, 2);
 }
 STATIC_INLINE ml_val_t ML_AllocReal64 (ml_state_t *msp, double d)

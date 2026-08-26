@@ -127,6 +127,7 @@ fi
 if [ x${CLEAN_INSTALL} = xyes ] ; then
   vsay "$cmd: remove existing executables and libraries"
   rm -rf bin include lib runtime/$LLVM_DIRNAME/build
+  (cd runtime/objs || exit 1; make clean)
 fi
 #
 # create the preloads.standard file
