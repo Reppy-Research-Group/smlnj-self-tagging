@@ -219,12 +219,18 @@ C.NUMt{sz=sz}
 		  | RECORD(_, flds, x, k) => allocRecord (
 		      D.makeDesc (length flds, D.tag_record),
 		      flds, x, bindVarIn(x, k))
-		  | SELECT(i, v, x, ty as CPS.NUMt{sz, ...}, k) => let
-                      val sel = if (normSz sz < ity)
-                            then pure(TP.TRUNC{from=ity, to=sz}, [select (i, genV v)])
-                            else select (i, genV v)
+		  | SELECT(i, v, x, ty as CPS.NUMt{sz, tag=false}, k) => let
+                      (* When selecting a raw integer out of a mixed or raw
+                       * record, use RAW_SELECT so that the result type will be
+                       * a raw integer. *)
+                      val sel = pure(
+                            TP.RAW_SELECT{kind=TP.INT, sz=ity, offset=i * ws},
+                            [genV v])
+                      val word = if (normSz sz < ity)
+                            then pure(TP.TRUNC{from=ity, to=sz}, [sel])
+                            else sel
                       in
-                        genCont (sel, x, ty, k)
+                        genCont (word, x, ty, k)
                       end
 		  | SELECT(i, v, x, ty as CPS.FLTt sz, k) => let
                       val sel = pure(
