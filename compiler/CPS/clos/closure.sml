@@ -269,9 +269,9 @@ fun smallObj (FLTt _) = true
   | smallObj (NUMt{sz, tag}) = tag
   | smallObj _ = false
 
-(* check if a record_kind is sharable by a function of fun_kind *)
+(* check if a closure of one fun_kind is sharable by another fun_kind *)
 (* removed quasiStack from MACH_SPEC -- jhr; 2019-06-03
-fun sharable((RK_CONT|RK_FCONT),(ESCAPE|KNOWN)) = not (MachSpec.quasiStack)
+fun sharable((CONT|KNOWN_CONT),(ESCAPE|KNOWN)) = not (MachSpec.quasiStack)
   | sharable _ = true
 *)
 fun sharable _ = true
@@ -305,7 +305,7 @@ type csregs = (value list * value list) option
 
 (* Description of a closure record:
  *   fns: function labels (can only be 0 or 1)
- *   kind: closure kind to emit
+ *   kind: logical function kind represented by the closure
  *   values: ordinary free variables
  *   closures: pointers to other closure records
  *   raws: untagged numbers and floats
@@ -320,7 +320,7 @@ withtype closure = {functions : (lvar * lvar) list,
                     values : lvar list,
                     closures : (lvar * closureRep) list,
                     raws : lvar list,
-                    kind : record_kind,
+                    kind : fun_kind,
                     core : lvar list,
                     free : lvar list,
                     stamp : lvar}
@@ -595,7 +595,8 @@ fun fetchClosures(env as Env(_,closureL,_,_),lives,fkind) =
 
       fun reusable2 (_,CR(_,{kind,...})) = sharable(kind,fkind)
 
-      fun fblock (_,CR(_,{kind=(RK_RAWBLOCK|RK_FCONT),...})) = true
+      fun fblock (_,CR(_, {functions=[], values=[], closures=[],
+                            raws=_::_, ...})) = true
         | fblock _ = false
 
       val level = 4 (* should be made adjustable in the future *)
@@ -625,7 +626,7 @@ fun recoverFrames(vl,Env(valueL,closureL,dispL,whatMap)) =
   end
 
 (* save the continuation closure "v" and its descendants *)
-fun saveFrames(v,CR(_,{free,kind=(RK_CONT|RK_FCONT),...}),env) =
+fun saveFrames(v,CR(_,{free,kind=(CONT|KNOWN_CONT),...}),env) =
          recoverFrames(free,env)
   | saveFrames(_,_,env) = env
 
@@ -705,7 +706,7 @@ fun varsCSregs(gpbase,fpbase,env) =
 fun freevCSregs(gpbase,env) =
  let fun h(NONE,l) = l
        | h(SOME v,l) = case whatIs(env,v)
-          of (Closure (CR(_,{free,kind=(RK_CONT|RK_FCONT),...}))) =>
+          of (Closure (CR(_,{free,kind=(CONT|KNOWN_CONT),...}))) =>
                  (SL.merge(free,l))
            | _ => l
   in foldr h [] gpbase
@@ -931,7 +932,7 @@ fun closureUbGen(cn, free, rk, fk, env) =
   let val nfree = map (fn (v, _, _) => v) free
       val ul = map VAR nfree
       val cr = CR(0,{functions=[],closures=[],values=[],raws=nfree,
-                     core=[],free=SL.enter(cn,nfree),kind=rk,stamp=cn})
+                     core=[],free=SL.enter(cn,nfree),kind=fk,stamp=cn})
    in (mkClosure(cn, ul, cr, rk, fk, env), cr)
   end
 
@@ -963,7 +964,7 @@ fun closureUnboxed(cn,int32free,otherfree,fk,env) =
               val ul = map VAR nfs
               val cr = CR(0, {functions=[],closures=ncs,values=[],raws=[],
                               core=[],free=SL.enter(cn,nfs@nfree),
-                              kind=rk,stamp=cn})
+                              kind=fk,stamp=cn})
               val (nh, env, nfs) = mkClosure(cn, ul, cr, rk, fk, env)
            in (nh1 o nh2 o nh, env, nfs)
           end))
@@ -1037,7 +1038,7 @@ fun flat(env,cfree,fk) =
             val rl = map VAR rvls
             val rk = rckind(fk,ul,rl)
             val cr = CR(0,{functions=[],values=vls,closures=cls,raws=rvls,
-                           kind=rk,stamp=cn,core=cvs,free=SL.enter(cn,fvs)})
+                           kind=fk,stamp=cn,core=cvs,free=SL.enter(cn,fvs)})
             val (nh,env,nf2) = mkClosure(cn,ul@rl,cr,rk,fk,env)
          in (env,hdr o nh,nf2@nf)
         end
@@ -1102,7 +1103,7 @@ fun layer(env,cfree,fk,ccl) =
             val rl = map VAR rls
             val rk = rckind(fk,ul,rl)
             val cr = CR(0,{functions=[],values=vls,closures=cls,raws=rls,
-                           kind=rk,stamp=cn,core=cvs,free=SL.enter(cn,fvs)})
+                           kind=fk,stamp=cn,core=cvs,free=SL.enter(cn,fvs)})
             val (nh2,env,nf2) = mkClosure(cn,ul@rl,cr,rk,fk,env)
          in (bh o nh1 o nh2, env, nf2@nf1@nf)
         end
@@ -1139,7 +1140,7 @@ fun closureBoxed(cn, fns, free, fk, ccl, env) =
                          val rk = rckind(fk,ul,rl)
                          val nfvs = SL.enter(nv, fvs)
                          val cr = CR(0,{functions=[],values=vls,closures=cls, raws=rls,
-                                        kind=rk,stamp=nv,core=cvs,free=nfvs})
+                                        kind=fk,stamp=nv,core=cvs,free=nfvs})
                          val (nh, nenv, nf) =
                            mkClosure(nv,ul@rl,cr,rk,fk,env)
                       in ([(nv,cr)], [], [], hdr o nh, nenv, nfvs, cvs, nf@frames, nlabs)
@@ -1152,7 +1153,7 @@ fun closureBoxed(cn, fns, free, fk, ccl, env) =
       val rl = (map VAR rls)
       val rk = rckind(fk,ul,rl)
       val cr = CR(0,{functions=fns,values=vls,closures=cls,raws=rls,
-                     kind=rk,stamp=cn,core=cvs,free=nfvs})
+                     kind=fk,stamp=cn,core=cvs,free=nfvs})
       val (nh, nenv, nf) = mkClosure(cn,ul@rl,cr,rk,fk,env)
    in (hdr o nh, nenv, cr, nf@frames)
   end (* function closureBoxed *)
