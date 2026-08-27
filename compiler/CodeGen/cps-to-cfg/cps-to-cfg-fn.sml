@@ -748,7 +748,8 @@ C.NUMt{sz=sz}
 		fun boxedTest (v, kBoxed, kUnboxed) =
 		      C.BRANCH(
 			TP.CMP{oper=P.EQL, signed=false, sz=ity},
-			  [pureOp(TP.ANDB, ity, [v, one]), zero ity],
+			  [pureOp(TP.ANDB, ity, [v, num (ity, 7)]), zero ity],
+                          (* FIXME: 7 -> majorTagWidth *)
 			unkProb,
 			kBoxed,
 			kUnboxed)
