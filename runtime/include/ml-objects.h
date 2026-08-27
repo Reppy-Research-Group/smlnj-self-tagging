@@ -29,9 +29,31 @@
 #include "tags.h"
 #endif
 
+/* see https://blog.regehr.org/archives/1063 */
+STATIC_INLINE Unsigned64_t RotateLeft64 (Unsigned64_t n, unsigned int amt)
+{
+    amt = (amt & 0x3F);
+    return (n << amt) | (n >> ((-amt) & 0x3F));
+}
+
+STATIC_INLINE Unsigned64_t RotateRight64 (Unsigned64_t n, unsigned int amt)
+{
+    amt = (amt & 0x3F);
+    return (n >> amt) | (n << ((-amt) & 0x3F));
+}
+
+STATIC_INLINE Int64_t _INT64_MLtoC (ml_val_t v)
+{
+    if (isBOXED(v)) {
+        return *PTR_MLtoC(Int64_t, v);
+    } else {
+        ASSERT (isRAW(v));
+        return (Int64_t)RotateRight64((Unsigned64_t)v ^ 6, 3);
+    }
+}
 
 STATIC_INLINE ml_val_t ML_AllocInt64 (ml_state_t *msp, Int64_t n);
-#define INT_MLtoC(n)		(*PTR_MLtoC(Int64_t, n))
+#define INT_MLtoC(n)		_INT64_MLtoC(n)
 #define INT_CtoML(n)		(ML_AllocInt64(msp, n))
 
 

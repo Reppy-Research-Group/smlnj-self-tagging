@@ -392,18 +392,25 @@ pending:
 
 /** Primitive object allocation routines **/
 
-/* array : (int * 'a) -> 'a array
+/* array : (int64 * 'a) -> 'a array
  * Allocate and initialize a new array
  */
 ALIGNED_ENTRY(array_a)
 	cmp	allocptr, limitptr
-	b.hi	L_array_gc               /* if (allocPtr > limitptr) then GC */
+	b.hi	L_array_gc                      /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)      /* xtmp1 := boxed length of array */
-        ldr     xtmp1, MEM(xtmp1, 0)     /* xtmp1 := unwrap xtmp1 */
-        mov     xtmp2, xtmp1             /* xtmp2 := xtmp1 */
+        ldr     xtmp1, MEM(xarg, 0)             /* xtmp1 := wrapped length of array */
+        tst     xtmp1, IM(7)                    /* if (xtmp1 is boxed) */
+        b.eq    L_array_ld                      /*   then goto L_array_ld */
+        eor     xtmp1, xtmp1, IM(6)             /* xtmp1 = xtmp1 ^ 0b110 */
+        ror     xtmp1, xtmp1, IM(3)             /* xtmp1 = rotateRight(xtmp1, 3) */
+        b       L_array_join
+L_array_ld:                                     /* load boxed length */
+        ldr     xtmp1, MEM(xtmp1, 0)            /* xtmp1 := unwrap xtmp1 */
+L_array_join:
+        mov     xtmp2, xtmp1                    /* xtmp2 := xtmp1 */
         cmp     xtmp2, IM(SMALL_OBJ_SZW)
-        b.hi    L_array_large            /* if (xtmp2 > SMALL_OBJ_SZW) goto array_large */
+        b.hi    L_array_large                   /* if (xtmp2 > SMALL_OBJ_SZW) goto array_large */
 
         ldr     xarg, MEM(xarg,8)                   /* arg := initial data value */
         /* build descriptor in tmp4 */
@@ -444,8 +451,15 @@ ALIGNED_ENTRY(create_v_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_v_gc                   /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp2, MEM(xarg, 0)      	/* xtmp2 := untagged length */
+        ldr     xtmp2, MEM(xarg, 0)      	/* xtmp2 := unwrapped length */
+        tst     xtmp2, IM(7)                    /* if (xtmp2 is boxed) */
+        b.eq    L_create_v_ld                   /*   then goto L_create_v_ld */
+        eor     xtmp2, xtmp2, IM(6)             /* xtmp2 = xtmp2 ^ 0b110 */
+        ror     xtmp2, xtmp2, IM(3)             /* xtmp2 = rotateRight(xtmp2, 3) */
+        b       L_create_v_join
+L_create_v_ld:                                     /* load boxed length */
         ldr     xtmp2, MEM(xtmp2, 0)            /* xtmp2 := unwrap xtmp2 */
+L_create_v_join:
         cmp     xtmp2, IM(SMALL_OBJ_SZW)        /* if (xtmp2 > SMALL_OBJ_SZW) */
         b.hi    L_vector_large                  /*    then goto vector_large */
 
@@ -491,7 +505,14 @@ ALIGNED_ENTRY(create_b_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_b_gc                   /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged byte length */
+        tst     xarg, IM(7)                     /* if (xarg is boxed) */
+        b.eq    L_create_b_ld                   /*   then goto L_create_b_ld */
+        eor     xtmp1, xarg, IM(6)              /* xtmp1 = xarg ^ 0b110 */
+        ror     xtmp1, xtmp1, IM(3)             /* xtmp1 = rotateRight(xtmp1, 3) */
+        b       L_create_b_join
+L_create_b_ld:                                  /* load boxed length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := unbox length */
+L_create_b_join:
         mov     xtmp4, xtmp1                    /* tmp4 := untagged byte length */
 
         add     xtmp1, xtmp1, IM(7)
@@ -534,7 +555,14 @@ ALIGNED_ENTRY(create_s_a)
 	cmp	allocptr, limitptr
 	b.hi	L_create_s_gc                   /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged byte length */
+        tst     xarg, IM(7)                     /* if (xarg is boxed) */
+        b.eq    L_create_s_ld                   /*   then goto L_create_s_ld */
+        eor     xtmp1, xarg, IM(6)              /* xtmp1 = xarg ^ 0b110 */
+        ror     xtmp1, xtmp1, IM(3)             /* xtmp1 = rotateRight(xtmp1, 3) */
+        b       L_create_s_join
+L_create_s_ld:                                  /* load boxed length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := unbox length */
+L_create_s_join:
         mov     xtmp4, xtmp1                    /* tmp4 := untagged byte length */
 
         add     xtmp1, xtmp1, IM(8)
@@ -578,9 +606,16 @@ L_create_s_gc:
  */
 ALIGNED_ENTRY(create_r_a)
 	cmp	allocptr, limitptr
-	b.hi	L_create_r_gc                 /* if (allocPtr > limitptr) then GC */
+	b.hi	L_create_r_gc                   /* if (allocPtr > limitptr) then GC */
 
-        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := untagged length */
+        tst     xarg, IM(7)                     /* if (xarg is boxed) */
+        b.eq    L_create_r_ld                   /*   then then goto L_create_r_ld */
+        eor     xtmp1, xarg, IM(6)              /* xtmp1 = xarg ^ 0b110 */
+        ror     xtmp1, xtmp1, IM(3)             /* xtmp1 = rotateRight(xtmp1, 3) */
+        b       L_create_r_join
+L_create_r_ld:                                  /* load boxed length */
+        ldr     xtmp1, MEM(xarg, 0)             /* tmp1 := unbox length */
+L_create_r_join:
         cmp     xtmp1, IM(SMALL_OBJ_SZW)        /* if (xtmp1 > SMALL_OBJ_SZW) */
         b.hi    L_create_r_large                /*    then goto create_r_large */
 
@@ -660,8 +695,17 @@ L_floor_gc:
  *      scalb (x, n) = x * 2^n
  */
 ALIGNED_ENTRY(scalb_a)
-        ldr     xtmp1, MEM(xarg, 8)         /* xtmp1 := #2(arg) */
-        ldr     xtmp1, MEM(xtmp1, 0)        /* xtmp1 := unwrap xtmp1 */
+        ldr     xtmp1, MEM(xarg, 8)             /* xtmp1 := #2(arg) */
+
+        tst     xtmp1, IM(7)                    /* if (xtmp1 is boxed) */
+        b.eq    L_scalb_ld                      /*   then goto L_scalb_ld */
+        eor     xtmp1, xtmp1, IM(6)             /* xtmp1 = xtmp1 ^ 0b110 */
+        ror     xtmp1, xtmp1, IM(3)             /* xtmp1 = rotateRight(xtmp1, 3) */
+        b       L_scalb_join
+L_scalb_ld:                                     /* load boxed length */
+        ldr     xtmp1, MEM(xtmp1, 0)            /* xtmp1 := unwrap xtmp1 */
+L_scalb_join:
+
         ldr     xarg, MEM(xarg, 0)          /* arg := #1(arg) -- ptr to boxed real */
         ldr     xtmp2, MEM(xarg, 0)         /* xtmp2 := bits(x) */
         ands    xtmp3, xtmp2, EXP_MASK      /* xmp3 := biased exponent */
