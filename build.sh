@@ -122,12 +122,29 @@ else
   CM_VERBOSE=true
 fi
 
+# source directories (other than cm, compiler, and system) that might have ".cm" files
+#
+SRC_DIRS="\
+  smlnj-lib \
+  libraries \
+  tools \
+  "
+
 # pre-flight cleanup
 #
 if [ x${CLEAN_INSTALL} = xyes ] ; then
   vsay "$cmd: remove existing executables and libraries"
   rm -rf bin include lib runtime/$LLVM_DIRNAME/build
   (cd runtime/objs || exit 1; make clean)
+  for d in $SRC_DIRS ; do
+    if [ -d "$SMLNJ_ROOT/$d" ] ; then
+      if [ x"$QUIET" = xyes ] ; then
+        find "$SMLNJ_ROOT/$d" \( -name .cm -exec rm -rf {} \; -prune \)
+      else
+        find "$SMLNJ_ROOT/$d" \( -name .cm -exec rm -rf {} \; -prune -print \)
+      fi
+    fi
+  done
 fi
 #
 # create the preloads.standard file
