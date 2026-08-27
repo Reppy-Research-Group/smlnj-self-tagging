@@ -125,7 +125,7 @@
 #define isBOXED(W)	(((Word_t)(W) & MAJOR_MASK) == TAG_boxed)
 #define isENUM(W)	(((Word_t)(W) & 1) == TAG_unboxed_b0)
 #define isDESC(W)	(((Word_t)(W) & MAJOR_MASK) == TAG_desc)
-#define isRAW(W)        ((0x5 & (1 << ((Word_t)(W) & MAJOR_MASK))) == 0)
+#define isRAW(W)        (((Word_t)(W) & 0x5) != 0)
 
 /* extract descriptor fields */
 #define GET_LEN(D)		(((Word_t)(D)) >> TAG_SHIFTW)
