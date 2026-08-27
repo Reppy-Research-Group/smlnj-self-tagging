@@ -665,6 +665,14 @@ fun fetchCSvars(c,m,n,env) =
   in (uniqvar gpregs,uniqvar fpregs)
  end
 
+(* check if a slot is already in csregs *)
+fun inCSregs(csg,c) =
+ let fun exists (SOME v :: r) = (v = c) orelse exists r
+       | exists (NONE :: r) = exists r
+       | exists [] = false
+  in exists csg
+ end
+
 (* fill the empty csgpregs with the closure *)
 fun fillCSregs(csg,c) =
  let fun g([],l) = l
@@ -1907,7 +1915,10 @@ val (nenv, calleeFrags : frags) =
     | _ =>
        (let val gpbase = case closureName
                           of NONE => gpbase
-                           | SOME _ => fillCSregs(gpbase,closureName)
+                           | SOME c =>
+                               if inCSregs(gpbase,c)
+                                 then gpbase
+                                 else fillCSregs(gpbase,closureName)
 
             val ncsg = map (fn (SOME v) => VAR v | NONE => tagInt 0) gpbase
             val ncsf = map (fn (SOME v) => VAR v | NONE => VOID) fpbase
