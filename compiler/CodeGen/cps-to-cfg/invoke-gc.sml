@@ -92,7 +92,7 @@ structure InvokeGC : sig
     fun record desc = P.RECORD{desc=desc, mut=false}
 
   (* select from a raw or mixed record *)
-    fun rawSelect (P.INT, sz, offset, rr) = let
+    fun rawSelect ({kind=P.INT, sz}, offset, rr) = let
           val oper = C.PURE{
                   oper = P.RAW_SELECT{kind=P.INT, sz=sz, offset=offset},
                   args = [rr]
@@ -102,7 +102,7 @@ structure InvokeGC : sig
               then oper
               else C.PURE{oper = P.TRUNC{from=64, to=sz}, args = [oper]}
           end
-      | rawSelect (P.FLT, sz, offset, rr) = C.PURE{
+      | rawSelect ({kind=P.FLT, sz}, offset, rr) = C.PURE{
 	    oper = P.RAW_SELECT{kind=P.FLT, sz=sz, offset=offset},
 	    args = [rr]
 	  }
@@ -243,7 +243,7 @@ raise ex)
                       unpackRoots (ix+1, rs))
                   | unpackRoots (ix, []) = unpackRaw (ix, raw)
                 and unpackRaw (ix, (jx, nk, sz)::rs) = (
-                      setResult (jx, rawSelect (nk, sz, 8*ix, var x));
+                      setResult (jx, CFGUtil.rawSelect ({kind=nk, sz=sz}, ix, var x));
                       unpackRaw (ix+1, rs))
                   | unpackRaw (_, []) = unpack (xs, rs)
                 in

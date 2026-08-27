@@ -222,20 +222,14 @@ C.NUMt{sz=sz}
 		  | SELECT(i, v, x, ty as CPS.NUMt{sz, tag=false}, k) => let
                       (* When selecting a raw integer out of a mixed or raw
                        * record, use RAW_SELECT so that the result type will be
-                       * a raw integer. *)
-                      val sel = pure(
-                            TP.RAW_SELECT{kind=TP.INT, sz=ity, offset=i * ws},
-                            [genV v])
-                      val word = if (normSz sz < ity)
-                            then pure(TP.TRUNC{from=ity, to=sz}, [sel])
-                            else sel
+                       * a raw integer.
+		       *)
+                      val sel = CFGUtil.rawSelect({kind=TP.INT, sz=sz}, i, genV v)
                       in
-                        genCont (word, x, ty, k)
+                        genCont (sel, x, ty, k)
                       end
 		  | SELECT(i, v, x, ty as CPS.FLTt sz, k) => let
-                      val sel = pure(
-                            TP.RAW_SELECT{kind = TP.FLT, sz = sz, offset = i * (sz div 8)},
-                            [genV v])
+                      val sel = CFGUtil.rawSelect({kind=TP.FLT, sz=sz}, i, genV v)
                       in
                         genCont (sel, x, ty, k)
                       end
