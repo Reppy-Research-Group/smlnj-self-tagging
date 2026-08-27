@@ -132,7 +132,7 @@ structure Core =
 	  val fast_add : int * int -> int = InLine.int64_unsafe_add
 	  val fast_sub : int * int -> int = InLine.int64_unsafe_sub
 
-	  val width_tags = 0w7  (* 5 tag bits plus "10" *)
+	  val width_tags = 0w8  (* 5 tag bits plus "010" *)
 
         (* the type annotation is just to work around an bug - sm *)
           val ltu : int * int -> bool = InLine.int64_ltu
@@ -253,12 +253,12 @@ structure Core =
 		    end
 	      in
 		case aTag
-		 of 0x02 (* tag_record *) =>
+		 of 0x02 (* tag_record: 00000_010 *) =>
 		      (ieql(aLen, 2) andalso pairEq())
 		      orelse (
 			ieql(getObjTag b, 0x02) andalso ieql(getObjLen b, aLen)
 			andalso eqVecData(aLen, a, b))
-		  | 0x06 (* tag_vec_hdr *) => (
+		  | 0x0a (* tag_vec_hdr: 00001_010 *) => (
 		    (* length encodes element type *)
 		      case (getObjLen a)
 		       of 0 (* seq_poly *) => let
@@ -271,9 +271,9 @@ structure Core =
 			| 1 (* seq_word8 *) => stringequal(cast a, cast b)
 			| _ => raise Match (* shut up compiler *)
 		      (* end case *))
-		  | 0x0a (* tag_arr_hdr *) => peql(getData a, getData b)
-		  | 0x0e (* tag_arr_data and tag_ref *) => false
-		  | 0x12 (* tag_raw *) => (
+		  | 0x12 (* tag_tag_arr_hdr: 00010_010 *) => peql(getData a, getData b)
+		  | 0x1a (* tag_arr_data/tag_ref: 00011_010 *) => false
+		  | 0x22 (* tag_raw: 00100_010 *) => (
 		    (* should be a boxed 64-bit number. We use the cast to int64 to
 		     * force the loading of the value to compare from memory.
 		     *)

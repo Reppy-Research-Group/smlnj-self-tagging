@@ -295,14 +295,17 @@ PVT void UncaughtExn (ml_val_t e)
     ml_val_t    traceBack = REC_SEL(e, 2);
     char        buf[1024];
 
-    if (isUNBOXED(val))
-        sprintf (buf, "%ld\n", (long int) ENUM_MLtoC(val));
-    else {
+    if (isENUM(val)) {
+        sprintf (buf, "%ld\n", (long int)ENUM_MLtoC(val));
+    } if (isRAW(val)) {
+        sprintf (buf, "<raw>");
+    } else {
         ml_val_t        desc = OBJ_DESC(val);
-        if (desc == DESC_string)
+        if (desc == DESC_string) {
             sprintf (buf, "\"%.*s\"", (int) GET_SEQ_LEN(val), STR_MLtoC(val));
-        else
+        } else {
             sprintf (buf, "<unknown>");
+        }
     }
 
     if (traceBack != LIST_nil) {

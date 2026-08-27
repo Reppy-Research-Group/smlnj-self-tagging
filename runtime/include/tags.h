@@ -24,19 +24,24 @@
 #define ANDOP &
 #endif
 
-#define MAJOR_MASK	HEXLIT(3)	/* bits 0-1 are the major tag */
+//#define MAJOR_MASK	HEXLIT(3)	/* bits 0-1 are the major tag */
+#define MAJOR_MASK	HEXLIT(7)	/* bits 0-2 are the major tag */
 
 					/* Major tag: */
-#define TAG_boxed	HEXLIT(0)	/*   00 - pointers */
-#define TAG_desc	HEXLIT(2)	/*   10 - descriptors */
-#define TAG_unboxed_b0	HEXLIT(1)	/*   01, 11 - unboxed (bit 0 is 1) */
+//#define TAG_boxed	HEXLIT(0)	/*   00 - pointers */
+//#define TAG_desc	HEXLIT(2)	/*   10 - descriptors */
+//#define TAG_unboxed_b0	HEXLIT(1)	/*   01, 11 - unboxed (bit 0 is 1) */
+#define TAG_boxed	HEXLIT(0)	/*   000 - pointers */
+#define TAG_desc	HEXLIT(2)	/*   010 - descriptors */
+#define TAG_unboxed_b0	HEXLIT(1)	/*   xx1- unboxed (bit 0 is 1) */
 
 /* mark/unmark an ML pointer to make it look like an unboxed object */
 #define MARK_PTR(p)	((ml_val_t)((Addr_t)(p) OROP HEXLIT(1)))
 #define UNMARK_PTR(p)	((ml_val_t)((Addr_t)(p) ANDOP ~HEXLIT(1)))
 
 /* Descriptors have five more tag bits (defined below). */
-#define DTAG_SHIFTW	2
+//#define DTAG_SHIFTW	2
+#define DTAG_SHIFTW	3
 #define DTAG_WID	5
 #define DTAG_MASK	(((1 << DTAG_WID)-1) << DTAG_SHIFTW)
 #define TAG_SHIFTW	(DTAG_SHIFTW+DTAG_WID)
@@ -78,8 +83,10 @@
 #define MAKE_TAG(t)	((Word_t)(((t) << DTAG_SHIFTW) | TAG_desc))
 #define MAKE_DESC(l,t)	((ml_val_t)(Word_t)(((l) << TAG_SHIFTW) | MAKE_TAG(t)))
 #else
-#define MAKE_TAG(t)	(((t)*4) + TAG_desc)
-#define MAKE_DESC(l,t)	(((l)*128) + MAKE_TAG(t))
+//#define MAKE_TAG(t)	(((t)*4) + TAG_desc)
+//#define MAKE_DESC(l,t)	(((l)*128) + MAKE_TAG(t))
+#define MAKE_TAG(t)	(((t)*8) + TAG_desc)
+#define MAKE_DESC(l,t)	(((l)*256) + MAKE_TAG(t))
 #endif
 
 #define DESC_pair	MAKE_DESC(2, DTAG_record)
@@ -111,12 +118,14 @@
 
 /* tests on words:
  *   isBOXED(W)   -- true if W is tagged as an boxed value
- *   isUNBOXED(W) -- true if W is tagged as an unboxed value
  *   isDESC(W)    -- true if W is tagged as descriptor
+ *   isENUM(W)    -- true if W is tagged as an enum value
+ *   isRAW(W)     -- true if W is not a boxed value or a descriptor
  */
 #define isBOXED(W)	(((Word_t)(W) & MAJOR_MASK) == TAG_boxed)
-#define isUNBOXED(W)	(((Word_t)(W) & 1) == TAG_unboxed_b0)
+#define isENUM(W)	(((Word_t)(W) & 1) == TAG_unboxed_b0)
 #define isDESC(W)	(((Word_t)(W) & MAJOR_MASK) == TAG_desc)
+#define isRAW(W)        ((0x5 & (1 << ((Word_t)(W) & MAJOR_MASK))) == 0)
 
 /* extract descriptor fields */
 #define GET_LEN(D)		(((Word_t)(D)) >> TAG_SHIFTW)

@@ -294,9 +294,9 @@ PVT void CheckMixedArena (arena_t *ap)
 		    p-1, GET_LEN(desc));
 		return;
 	    }
-	    if (! isUNBOXED(p[1])) {
+	    if (! isENUM(p[1])) {
 		ERROR;
-		SayDebug ("** @%p: %s header length field not an int (%p)\n",
+		SayDebug ("** @%p: %s header length field not a tagged int (%p)\n",
 		    p+1, SeqHdrKind(desc), p[1]);
 	    }
 	    p += 2;

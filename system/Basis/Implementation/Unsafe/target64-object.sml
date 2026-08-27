@@ -51,27 +51,27 @@ structure UnsafeObject :> UNSAFE_OBJECT =
     fun rep obj = if (unboxed obj)
 	  then Unboxed
 	  else (case (InlineT.gettag obj)
-	     of 0x02 (* tag_record *) =>
+	     of 0x02 (* tag_record: 00000_010 *) =>
 		  if (InlineT.objlength obj = 2)
 		    then Pair
 		    else Record
-	      | 0x06 (* tag_vec_hdr *) => (case (InlineT.objlength obj)
+	      | 0x0a (* tag_vec_hdr: 00001_010 *) => (case (InlineT.objlength obj)
 		 of 0 => PolyVector
 		  | 1 => ByteVector
 		  | _ => raise Fail "unknown vec_hdr"
 		(* end case *))
-	      | 0x0a (* tag_tag_arr_hdr *) => (case (InlineT.objlength obj)
+	      | 0x12 (* tag_tag_arr_hdr: 00010_010 *) => (case (InlineT.objlength obj)
 		 of 0 => PolyArray
 		  | 1 => ByteArray
 		  | 6 => RealArray
 		  | _ => raise Fail "unknown arr_hdr"
 		(* end case *))
-	      | 0x0e (* tag_arr_data/tag_ref *) =>
+	      | 0x1a (* tag_arr_data/tag_ref: 00011_010 *) =>
 		  if (InlineT.objlength obj = 1)
 		    then Ref
 		    else raise Fail "Unknown arr_data"
-	      | 0x12 (* tag_raw *) => Raw
-	      | 0x1a (* tag_special *) => (case (InlineT.getspecial obj)
+	      | 0x22 (* tag_raw: 00100_010 *) => Raw
+	      | 0x32 (* tag_special: 00110_010 *) => (case (InlineT.getspecial obj)
 		 of (0 | 1) => Susp
 		  | (2 | 3) => WeakPtr
 		  | _ => raise Fail "unknown special"

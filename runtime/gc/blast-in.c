@@ -169,7 +169,7 @@ PVT status_t ReadImage (ml_state_t *msp, inbuf_t *bp, ml_val_t *objRef)
 		    stop = (ml_val_t *)((Addr_t)p + arenaHdrs[i]->info.o.sizeB);
 		    while (p < stop) {
 		        ml_val_t	w = *p;
-		        if (! isUNBOXED(w)) {
+		        if (! isRAW(w)) {
 			    if (isEXTERNTAG(w)) {
 			        w = externs[EXTERNID(w)];
 			    }
