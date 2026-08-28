@@ -47,6 +47,8 @@ signature CGCONTROL =
     val vnRecordElim : bool ref
     val vnSelectElim : bool ref
     val vnPrimElim : bool ref
+    val selfTagReals : bool ref
+    val selfTagInts : bool ref
 
     val ifidiom : bool ref
     val comparefold : bool ref
