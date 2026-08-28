@@ -752,6 +752,7 @@ C.NUMt{sz=sz}
 		      C.BRANCH(
 			TP.CMP{oper=P.EQL, signed=false, sz=ity},
 			  [pureOp(TP.ANDB, ity, [v, num (ity, 7)]), zero ity],
+                          (* FIXME: 7 -> majorTagWidth *)
 			unkProb,
 			kTrue,
 			kFalse)
