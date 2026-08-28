@@ -77,6 +77,7 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 		  | _ => raise Fail "unknown special"
 		(* end case *))
 	      | _ (* tagless pair *) => Pair
+                (* DEFAULT64: How about raw? *)
 	    (* end case *))
 
     exception Representation
@@ -86,6 +87,18 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	    | Unboxed => raise Representation
 	    | _ => InlineT.objlength obj
 	  (* end case *))
+
+    fun unwrap64 b = InlineT.cast b
+      (* For inexplicable reason a cast generates the wrap code *)
+      (* Word64Imp.rotateR (Word64Imp.xorb (i, 0w6), 0w3) *)
+
+    fun unwrapTagged b =
+      case rep b
+        of Unboxed =>
+             let val i: Word64.word = InlineT.cast b
+             in  Word64Imp.>> (i, 0w1)
+             end
+         | _ => raise Representation
 
     fun nth (obj, n) = (case (rep obj)
 	   of Pair =>
@@ -182,37 +195,14 @@ structure UnsafeObject :> UNSAFE_OBJECT =
 	   of Raw => ((InlineT.cast obj) : Real64.real)
 	    | _ => raise Representation
 	  (* end case *))
-    fun toInt63 obj = if (unboxed obj)
-	  then ((InlineT.cast obj) : Int63.int)
-	  else raise Representation
-    fun toInt32 obj =
-	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
-	    then ((InlineT.cast obj) : Int32.int)
-	    else raise Representation
-    fun toInt64 obj =
-	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
-	    then ((InlineT.cast obj) : Int64.int)
-	    else raise Representation
-    fun toInt obj = if (unboxed obj)
-	  then InlineT.Int63.toInt ((InlineT.cast obj) : Int63.int)
-	  else toInt64 obj
-    fun toWord63 obj = if (unboxed obj)
-	  then ((InlineT.cast obj) : Word63.word)
-	  else raise Representation
-    fun toWord8 obj =
-	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
-	    then ((InlineT.cast obj) : Word8.word)
-	    else raise Representation
-    fun toWord32 obj =
-	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
-	    then ((InlineT.cast obj) : Word32.word)
-	    else raise Representation
-    fun toWord64 obj =
-	  if (rep obj = Raw) andalso (InlineT.objlength obj = 1)
-	    then ((InlineT.cast obj) : Word64.word)
-	    else raise Representation
-    fun toWord obj = if (unboxed obj)
-	  then InlineT.Word63.toWord64 ((InlineT.cast obj) : Word63.word)
-	  else toWord64 obj
+    fun toInt63 obj =  (InlineT.cast obj) : Int63.int
+    fun toInt32 obj = Int32Imp.fromInt (Word64Imp.toInt (unwrapTagged obj))
+    fun toInt64 obj = Word64Imp.toInt (unwrap64 obj)
+    fun toInt obj = toInt64 obj
+    fun toWord63 obj = (InlineT.cast obj) : Word63.word
+    fun toWord8 obj = Word8Imp.fromLarge (unwrapTagged obj)
+    fun toWord32 obj = Word32Imp.fromLarge (unwrapTagged obj)
+    fun toWord64 obj = unwrap64 obj
+    fun toWord obj = toWord64 obj
 
   end;

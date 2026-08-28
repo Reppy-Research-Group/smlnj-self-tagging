@@ -53,10 +53,12 @@ signature UNSAFE_OBJECT =
     val toReal64 : object -> Real64.real
     val toInt    : object -> int
     val toInt32  : object -> Int32.int
+    val toInt63  : object -> Int63.int
     val toInt64  : object -> Int64.int
     val toWord   : object -> Word.word
     val toWord8  : object -> Word8.word
     val toWord32 : object -> Word32.word
+    val toWord63 : object -> Word63.word
     val toWord64 : object -> Word64.word
 
   (* fetch nth element of tuple *)

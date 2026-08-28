@@ -240,7 +240,7 @@ structure Core =
 		    val bTag = getObjTag b
 		    in
 		      ((ieql(bTag, 0x02) andalso ieql(bLen, 2))
-		        orelse ineq(andb(bTag, 0x3),0x2))
+		        orelse ineq(andb(bTag, 0x7),0x2))
 		      andalso polyequal(recSub(a, 0), recSub(b, 0))
 		      andalso polyequal(recSub(a, 1), recSub(b, 1))
 		    end
