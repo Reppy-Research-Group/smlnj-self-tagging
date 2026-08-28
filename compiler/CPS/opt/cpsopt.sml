@@ -251,16 +251,25 @@ functor CPSopt (MachSpec: MACH_SPEC) : CPSOPT =
 (*              val function6 = eta function5 (* ZSH added this new phase *) *)
 (*              val function7 = last_contract function6 *)
 (*              val optimized function7 *)
-		in
-		(* expand out the 64-bit and IntInf operations and then do one last
-		 * contraction pass.
-		 *)
-		  if !CG.printit
+		val () = if !CG.printit
 		    then (
 		      say ["\n\n[Before lowering]\n\n"];
 		      PPCps.printcps0 optimized)
-		    else ();
-		  last_contract (LowerCPS.transform optimized)
+		    else ()
+                val optimized = LowerCPS.transform optimized
+		val () = if !CG.printit
+		    then (
+		      say ["\n\n[After lowering]\n\n"];
+		      PPCps.printcps0 optimized)
+		    else ()
+                val optimized = last_contract optimized
+		val () = if !CG.printit
+		    then (
+		      say ["\n\n[After last contract]\n\n"];
+		      PPCps.printcps0 optimized)
+		    else ()
+		in
+		  optimized
 		end)
 	    before (debugprint["\n"]; debugflush())
 	  end (* fun reduce *)
