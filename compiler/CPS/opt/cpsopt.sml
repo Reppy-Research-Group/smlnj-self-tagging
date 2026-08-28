@@ -73,11 +73,24 @@ functor CPSopt (MachSpec: MACH_SPEC) : CPSOPT =
 
 	(* in the last contract phase, certain contractions are prohibited *)
 	  fun last_contract f = let
+(*
 		val f' = (
 		      clicked := 0;
 		      Contract.contract {
 			  function=f, click=click, last=true, size=cpssize
 			})
+*)
+(* this is a hack to make sure that we contract until there is nothing left to do *)
+                fun iter (f, n) = let
+                      val f' = Contract.contract {
+                              function=f, click=click, last=true, size=cpssize
+                            }
+                      in
+                        if (!clicked = n)
+                          then f'
+                          else iter(f', !clicked)
+                      end
+                val f' = (clicked := 0; iter (f, !clicked))
 		in
 		  debugprint [
 		      "Last contract stats: CPS Size = ", Int.toString (!cpssize),
@@ -240,7 +253,21 @@ functor CPSopt (MachSpec: MACH_SPEC) : CPSOPT =
 	    | apply (p,f)                = (say["\n!! Unknown cps phase '", p, "' !!\n"]; f)
 	  in
 	    (if rounds < 0
-	      then function
+	      then let
+		val () = if !CG.printit
+		    then (
+		      say ["\n\n[Before lowering]\n\n"];
+		      PPCps.printcps0 optimized)
+		    else ()
+                val lowered = LowerCPS.transform function
+		val () = if !CG.printit
+		    then (
+		      say ["\n\n[After lowering]\n\n"];
+		      PPCps.printcps0 optimized)
+		    else ()
+		in
+		  lowered
+		end
 	      else let
 		val optimized = foldl apply function (!CG.cpsopt)
 (*              val function1 = first_contract function *)
