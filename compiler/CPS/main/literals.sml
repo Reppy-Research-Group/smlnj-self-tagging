@@ -225,7 +225,7 @@ structure Literals : LITERALS =
 	    then (W8B.add1(buf, opINTb); addLargeInt16(buf, n))
 	    else (W8B.add1(buf, opINTb); addLargeInt32(buf, n))
 
-  (* encode 64-bit boxed integers *)
+  (* encode unwrapped 64-bit integers *)
     fun encINT64 (buf, n) = if (~128 <= n) andalso (n <= 127)
 	    then (W8B.add1(buf, opINT64b); addLargeInt8(buf, n))
 	  else if (~32768 <= n) andalso (n <= 32767)
@@ -308,6 +308,7 @@ structure Literals : LITERALS =
       | LV_STR of string				(* string *)
       | LV_RECORD of C.record_kind * literal list	(* record/vector/raw record *)
       | LV_RAW of W8V.vector				(* raw data vector (target word size) *)
+      | LV_INT64 of IntInf.int				(* wrapped 64-bit integer *)
 
     and literal
       = LIT of {			(* heap-allocated literal value *)
@@ -333,6 +334,7 @@ structure Literals : LITERALS =
       | cpsTypeOf (LV_RECORD(C.RK_RECORD, lits)) = C.rPtrTy(List.length lits)
       | cpsTypeOf (LV_RECORD _) = CPSUtil.BOGt
       | cpsTypeOf (LV_RAW _) = CPSUtil.BOGt
+      | cpsTypeOf (LV_INT64 _) = CPSUtil.BOGt
 
   (* is a literal used as value outside of being part of another literal? *)
     fun litIsUsed (LIT{refCnt, useCnt, ...}) = (!refCnt < !useCnt)
@@ -373,6 +375,9 @@ structure Literals : LITERALS =
 		  | (LV_RAW v) => say(concat[
 			"RAW(", Int.toString(W8V.length v), " bytes) ", suffix, "\n"
 		      ])
+		  | (LV_INT64 n) => say(concat[
+			"INT64(", IntInf.toString n, ") ", suffix, "\n"
+		      ])
 		(* end case *))
 	  fun prSlot (i, LIT arg) = (
 		say (StringCvt.padLeft #" " 4 (Int.toString i) ^ ": ");
@@ -398,6 +403,7 @@ structure Literals : LITERALS =
       (* add a literal record value to the environment *)
 	val addRecord : t -> C.record_kind * literal list * C.lvar -> unit
 	val addRaw : t -> W8V.vector * C.lvar -> unit
+	val addInt64 : t -> IntInf.int * C.lvar -> unit
       (* return the literal that a variable is bound to *)
 	val findVar : t -> C.lvar -> var_info option
       (* is a value representable as a literal? *)
@@ -447,6 +453,7 @@ structure Literals : LITERALS =
 		List.foldl f h0 lits
 	      end
 	  | hashLV (LV_RAW v) = HashString.hashString(Byte.bytesToString v) + 0w127
+	  | hashLV (LV_INT64 n) = Word.fromLargeInt n + 0w331
 
 	fun sameLV (LV_REAL{ty=ty1, rval=rv1}, LV_REAL{ty=ty2, rval=rv2}) =
 	      (ty1 = ty2) andalso RealLit.same(rv1, rv2)
@@ -454,6 +461,7 @@ structure Literals : LITERALS =
 	  | sameLV (LV_RECORD(rk1, lvs1), LV_RECORD(rk2, lvs2)) =
 	      (rk1 = rk2) andalso ListPair.allEq sameLit (lvs1, lvs2)
 	  | sameLV (LV_RAW v1, LV_RAW v2) = (v1 = v2)
+	  | sameLV (LV_INT64 n1, LV_INT64 n2) = (n1 = n2)
 	  | sameLV _ = false
 
 	and sameLit (LIT{useCnt=u1, ...}, LIT{useCnt=u2, ...}) = (u1 = u2)
@@ -529,6 +537,13 @@ structure Literals : LITERALS =
               in
                 fn (data, v) => insert (v, (false, add (LV_RAW data)))
               end
+
+	fun addInt64 (LE{lits, vMap, ...}) = let
+	      val add = add lits
+	      val insert = LV.Tbl.insert vMap
+	      in
+		fn (n, v) => insert (v, (false, add (LV_INT64 n)))
+	      end
 
 	fun findVar (LE{vMap, ...}) = LV.Tbl.find vMap
 
@@ -628,6 +643,7 @@ structure Literals : LITERALS =
 	  val useValue' = LitEnv.useValue' env
 	  val addRecord = LitEnv.addRecord env
 	  val addRaw = LitEnv.addRaw env
+	  val addInt64 = LitEnv.addInt64 env
 	  fun fieldToValue (u, C.OFFp 0) = u
 	    | fieldToValue _ = bug "unexpected access in field"
 	(* process a CPS function *)
@@ -666,6 +682,9 @@ structure Literals : LITERALS =
 		  | C.SETTER(p, ul, e) => (useValues ul; doExp e)
 		  | C.LOOKER(p, ul, v, t, e) => (useValues ul; doExp e)
 		  | C.ARITH(p, ul, v, t, e) => (useValues ul; doExp e)
+		  | C.PURE(C.P.WRAP(C.P.INT 64), [C.NUM{ival, ...}], v, t, e) => (
+		      addInt64 (ival, v);
+		      doExp e)
 		  | C.PURE(C.P.WRAP(C.P.INT sz), [C.NUM{ival, ...}], v, t, e) => (
                       (* DEFAULT64: need to be consistent with cps-to-cfg-fn.sml *)
 		      addRaw (extendIntToNativeBytes(sz, ival), v);
@@ -759,6 +778,7 @@ structure Literals : LITERALS =
 			(* end case *)
 		      end
 		  | genLV (d, LV_RAW v) = (depth(d+1); encRAW(buf, v))
+		  | genLV (d, LV_INT64 n) = (depth(d+1); encINT64(buf, n))
 		and genLit (d, lit as LIT{id, value, ...}) = if litIsShared lit
 		      then ( (* shared literal, so either load or save it *)
 			case findSharedLit id

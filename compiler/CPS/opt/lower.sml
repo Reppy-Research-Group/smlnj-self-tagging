@@ -172,6 +172,13 @@ structure LowerCPS : sig
                           end
                         (* rotations of native words are handled by hardware *)
                         else C.PURE(p, [v1, v2], x, t, cexp e)
+                  | cexp (C.PURE(p as P.WRAP(P.INT 64),
+                        [v as C.NUM _], x, t, e)) =
+                      (* Preserve constant wraps until literal splitting.  Its
+                       * literal instruction constructs the self-tagged value, or
+                       * the boxed fallback when the encoding is reserved.
+                       *)
+                      C.PURE(p, [v], x, t, cexp e)
                   | cexp (C.PURE(P.WRAP(P.INT 64), [v], x, t, e)) = let
 (* TODO: add a control to enable/disable self tagging *)
                       val joinK = LV.namedLvar' "join"

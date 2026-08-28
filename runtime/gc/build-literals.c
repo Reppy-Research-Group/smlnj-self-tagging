@@ -637,9 +637,20 @@ ml_val_t BuildLiterals (ml_state_t *msp, Byte_t *code, int len)
 #ifdef DEBUG_LITERALS
 	    SayDebug("[%04d/%4d]: INT64(" PRINT ")\n", startPC, depth, arg.iArg);
 #endif
-	    res = ML_AllocWord64(msp, arg.iArg);
-	    PUSH (res);
-	    availSpace -= 2*WORD_SZB;
+	    {
+		Word_t n = arg.uArg;
+		ml_val_t tagged = (ml_val_t)(RotateLeft64(n, 3) ^ 0x6);
+		if (isRAW(tagged)) {
+		    PUSH ((ml_val_t)tagged);
+		}
+		else {
+		    spaceReq = 2*WORD_SZB;
+		    GC_CHECK;
+		    res = ML_AllocWord64(msp, n);
+		    PUSH (res);
+		    availSpace -= spaceReq;
+		}
+	    }
 	    break;
 #endif
 
