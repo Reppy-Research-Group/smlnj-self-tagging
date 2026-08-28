@@ -606,10 +606,9 @@ structure Literals : LITERALS =
 		     (* end case *))
 		 | (C.LABEL _) => bug "unexpected LABEL"
 		 | (C.NUM n) => IMMED n
-                 | (C.ENUM i) =>
-                     IMMED {
-                       ival=IntInf.fromInt i,
-                       ty={ sz=Target.defaultTaggedIntSz, tag=true }
+                 | (C.ENUM i) => IMMED{
+                       ival = IntInf.fromInt i,
+                       ty = { sz = Target.defaultTaggedIntSz, tag = true }
                      }
 		 | (C.REAL r) => bug "unexpected REAL"
 		 | (C.STRING s) => use(addString s)
