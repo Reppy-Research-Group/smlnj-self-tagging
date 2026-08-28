@@ -296,8 +296,9 @@ PVT void UncaughtExn (ml_val_t e)
     char        buf[1024];
 
     if (isENUM(val)) {
+        // DEFAULT64: We can't really distinguish between ENUM and RAW anymore
         sprintf (buf, "%ld\n", (long int)ENUM_MLtoC(val));
-    } if (isRAW(val)) {
+    } else if (isRAW(val)) {
         sprintf (buf, "<raw>");
     } else {
         ml_val_t        desc = OBJ_DESC(val);

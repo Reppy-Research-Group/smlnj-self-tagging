@@ -180,7 +180,7 @@ STATIC_INLINE ml_val_t ML_AllocWord (ml_state_t *msp, Word_t w)
 STATIC_INLINE ml_val_t INT32_CtoML (ml_state_t *msp, Int32_t n)
 {
 #ifdef SIZE_64
-    return INT_CtoML(n); /* tagged representation on 64-bit systems */
+    return ENUM_CtoML(n); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
     ml_val_t *p = msp->ml_allocPtr;
     p[0] = MAKE_DESC(1, DTAG_raw);
@@ -191,15 +191,15 @@ STATIC_INLINE ml_val_t INT32_CtoML (ml_state_t *msp, Int32_t n)
 STATIC_INLINE Int32_t INT32_MLtoC (ml_val_t n)
 {
 #ifdef SIZE_64
-    return INT_MLtoC(n); /* tagged representation on 64-bit systems */
+    return ENUM_MLtoC(n); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
-    return *PTR_MLtoC(Int32_t, n);
+    #error 32-bit architecture not supported
 #endif
 }
 STATIC_INLINE Int32_t REC_SELINT32 (ml_val_t p, int i)
 {
 #ifdef SIZE_64
-    return REC_SELINT(p, i); /* tagged representation on 64-bit systems */
+    return INT32_MLtoC(REC_SEL(p, i)); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
     return *REC_SELPTR(Int32_t, p, i);
 #endif
@@ -207,7 +207,7 @@ STATIC_INLINE Int32_t REC_SELINT32 (ml_val_t p, int i)
 STATIC_INLINE ml_val_t WORD32_CtoML (ml_state_t *msp, Unsigned32_t n)
 {
 #ifdef SIZE_64
-    return INT_CtoML(n); /* tagged representation on 64-bit systems */
+    return ENUM_CtoML(n); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
     ml_val_t *p = msp->ml_allocPtr;
     p[0] = MAKE_DESC(1, DTAG_raw);
@@ -218,7 +218,7 @@ STATIC_INLINE ml_val_t WORD32_CtoML (ml_state_t *msp, Unsigned32_t n)
 STATIC_INLINE Unsigned32_t WORD32_MLtoC (ml_val_t n)
 {
 #ifdef SIZE_64
-    return (Unsigned32_t)INT_MLtoC(n); /* tagged representation on 64-bit systems */
+    return (Unsigned32_t)ENUM_MLtoC(n); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
     return *PTR_MLtoC(Unsigned32_t, n);
 #endif
@@ -226,7 +226,7 @@ STATIC_INLINE Unsigned32_t WORD32_MLtoC (ml_val_t n)
 STATIC_INLINE Unsigned32_t REC_SELWORD32 (ml_val_t p, int i)
 {
 #ifdef SIZE_64
-    return (Unsigned32_t)REC_SELINT(p, i); /* tagged representation on 64-bit systems */
+    return (Unsigned32_t)ENUM_MLtoC(REC_SEL(p, i)); /* tagged representation on 64-bit systems */
 #else /* 32-bit ML values */
     return *REC_SELPTR(Unsigned32_t, p, i);
 #endif
@@ -260,21 +260,17 @@ STATIC_INLINE ml_val_t ML_AllocWord64 (ml_state_t *msp, Unsigned64_t w)
 STATIC_INLINE Int64_t INT64_MLtoC (ml_val_t n)
 {
 #ifdef SIZE_64
-    return *PTR_MLtoC(Unsigned64_t, n);
+    return _INT64_MLtoC(n);
 #else /* 32-bit ML values */
-    Unsigned64_t hi = PTR_MLtoC(Unsigned32_t, n)[0];
-    Unsigned64_t lo = PTR_MLtoC(Unsigned32_t, n)[1];
-    return ((hi << 32) | lo);
+#error 32-bit architecture not supported
 #endif
 }
 STATIC_INLINE Unsigned64_t WORD64_MLtoC (ml_val_t n)
 {
 #ifdef SIZE_64
-    return *PTR_MLtoC(Unsigned64_t, n);
+    return _INT64_MLtoC(n);
 #else /* 32-bit ML values */
-    Unsigned64_t hi = PTR_MLtoC(Unsigned32_t, n)[0];
-    Unsigned64_t lo = PTR_MLtoC(Unsigned32_t, n)[1];
-    return ((hi << 32) | lo);
+#error 32-bit architecture not supported
 #endif
 }
 
@@ -313,7 +309,7 @@ STATIC_INLINE ml_val_t ML_AllocNanoseconds (ml_state_t *msp, int sec, int usec)
 
 /** Boxed word values **/
 #define WORD_ALLOC(msp, r, w)	{ (r) = ML_AllocWord((msp), (w)); }
-#define WORD_MLtoC(w)		(*PTR_MLtoC(Word_t, w))
+#define WORD_MLtoC(w)		((Word_t)_INT64_MLtoC(w))
 #define REC_SELWORD(p, i)	(*REC_SELPTR(Word_t, p, i))
 
 /* temporary */
