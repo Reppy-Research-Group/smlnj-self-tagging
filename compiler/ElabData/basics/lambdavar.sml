@@ -63,7 +63,14 @@ structure LambdaVar :> LAMBDA_VAR =
 	    nv
 	  end
 
-    fun namedLvar (id: S.symbol) = let
+    fun namedLvar' (id : string) = let
+	  val nv = mkLvar()
+          in
+	    if !saveLvarNames then giveLvarName(nv, id) else ();
+	    nv
+          end
+
+    fun namedLvar (id : S.symbol) = let
 	  val nv = mkLvar()
           in
 	    if !saveLvarNames then giveLvarName(nv, S.name id) else ();

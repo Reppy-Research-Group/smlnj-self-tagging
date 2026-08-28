@@ -39,7 +39,9 @@ structure PPObj : PPOBJ =
 
     type object = Obj.object
 
-    fun gettag obj = Obj.toInt (Obj.nth(obj, 0))
+    fun taggedInt obj = Int63.toInt (Obj.toInt63 obj)
+
+    fun gettag obj = taggedInt (Obj.nth(obj, 0))
 
     fun switch (obj, dcons) = let
           fun chk (f, tag : int) =
@@ -48,12 +50,12 @@ structure PPObj : PPOBJ =
                  of A.TAGGED i =>
                       if chk(gettag, i) then d else try r
                   | A.CONSTANT i =>
-                      if chk(Obj.toInt, i) then d else try r
+                      if chk(taggedInt, i) then d else try r
                   | A.TRANSPARENT => d
                   | A.UNTAGGED => if Obj.boxed obj then d else try r
                   | A.REF => d
                   | A.LISTCONS => if (Obj.boxed obj) then d else try r
-                  | A.LISTNIL => if chk(Obj.toInt, 0) then d else try r
+                  | A.LISTNIL => if chk(taggedInt, 0) then d else try r
                   | A.SUSP _ => d  (* LAZY *)
                   | _ => bug "switch: funny datacon"
                 (* end case *))
@@ -314,16 +316,17 @@ structure PPObj : PPOBJ =
     (* printing for monomorphic primitive types (i.e., the types in BasicTypes) *)
     local
       fun wordPrefx s = "0wx" ^ s
-      fun char2str obj = concat["#\"", Char.toString(Char.chr(Obj.toInt obj)), "\""]
+      fun char2str obj = concat[
+              "#\"", Char.toString(Char.chr(Word8.toInt(Obj.toWord8 obj))), "\""]
       fun exn2str obj = General.exnName(Obj.toExn obj) ^ "(-)"
       val toStringTbl = [
-              (BT.int31Tycon,           Int.toString o Obj.toInt),
+              (BT.int31Tycon,           Int63.toString o Obj.toInt63),
               (BT.int32Tycon,           Int32.toString o Obj.toInt32),
-              (BT.int63Tycon,           Int.toString o Obj.toInt),
+              (BT.int63Tycon,           Int63.toString o Obj.toInt63),
               (BT.int64Tycon,           Int64.toString o Obj.toInt64),
               (BT.intinfTycon,          PrintUtil.formatIntInf o Unsafe.cast),
-              (BT.word31Tycon,          wordPrefx o Word.toString o Obj.toWord),
-              (BT.word63Tycon,          wordPrefx o Word.toString o Obj.toWord),
+              (BT.word31Tycon,          wordPrefx o Word63.toString o Obj.toWord63),
+              (BT.word63Tycon,          wordPrefx o Word63.toString o Obj.toWord63),
               (BT.word8Tycon,           wordPrefx o Word8.toString o Obj.toWord8),
               (BT.word32Tycon,          wordPrefx o Word32.toString o Obj.toWord32),
               (BT.word64Tycon,          wordPrefx o Word64.toString o Obj.toWord64),

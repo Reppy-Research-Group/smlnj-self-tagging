@@ -403,6 +403,15 @@ structure ContractPrim : sig
             | (P.PURE_ARITH{oper=P.NOTB, kind}, [NUM i]) =>
                 Val(NUM{ival = CA.bNot(sizeOfKind kind, #ival i), ty = #ty i})
             (***** ROTL *****)
+(* TODO: need support in the constant-arithmetic library (compiler/Library/const-arith)
+ * for rotations.
+            | (P.PURE_ARITH{oper=P.ROTL, kind=P.UINT sz}, [iv as NUM n, NUM m]) => let
+                val j = (#ival m) mod IntInf.fromInt sz
+                in
+                  if j = 0 then Val iv
+                  else ??
+                end
+*)
             | (P.PURE_ARITH{oper=P.ROTL, ...}, [i as NUM{ival=0, ...}, _]) => Val i
 (* TODO: rotation of all ones is also a no-op *)
             | (p as P.PURE_ARITH{oper=P.ROTL, kind=P.UINT sz}, [v, i as NUM{ival, ...}]) =>
@@ -426,6 +435,15 @@ structure ContractPrim : sig
                   else if (sz' <> n) then Pure(p, [v, defaultInt' n])
                   else None
                 end
+(* TODO: need support in the constant-arithmetic library (compiler/Library/const-arith)
+ * for rotations.
+            | (P.PURE_ARITH{oper=P.ROTR, kind=P.UINT sz}, [iv as NUM n, NUM m]) => let
+                val j = (#ival m) mod IntInf.fromInt sz
+                in
+                  if j = 0 then Val iv
+                  else ??
+                end
+*)
             (***** PURE_NUMSUBSCRIPT *****)
             | (P.PURE_NUMSUBSCRIPT{kind}, [STRING s, NUM i]) => let
                 val v = ord(String.sub(s, Int.fromLarge(#ival i)))
@@ -605,9 +623,17 @@ structure ContractPrim : sig
                  of RECinfo _ => SOME true
                   | PUREinfo(P.MKSPECIAL, _) => SOME true
                   | PUREinfo(P.BOX, _) => SOME true
-                  | PUREinfo(P.WRAP _, _) => SOME true
+                  | PUREinfo(P.WRAP _, _) => NONE (* DEFAULT64: consider this *)
                   | _ => NONE
                 (* end case *))
+            | cond (P.RAW, [NUM{ival, ...}]) = let
+                val lowBits = IntInf.andb(ival, 7)
+                in
+                (* WARNING: this test needs to be consistent with the header
+                 * encoding and the self-tagging scheme!
+                 *)
+                  SOME((lowBits <> 0) andalso (lowBits <> 2))
+                end
             | cond (P.IS_POW2 _, [i as NUM{ival, ...}]) =
                 SOME((ival <> 0) andalso (IntInf.andb(ival, ival-1) = 0))
             | cond (P.CMP{oper=P.LT, ...}, [VAR v, VAR w]) =

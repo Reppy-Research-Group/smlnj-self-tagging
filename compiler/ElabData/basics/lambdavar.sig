@@ -29,6 +29,7 @@ signature LAMBDA_VAR =
 
     val dupLvar : lvar -> lvar
     val namedLvar : Symbol.symbol -> lvar
+    val namedLvar' : string -> lvar
     val lvarSym : lvar -> Symbol.symbol option
     val lvarName : lvar -> string
 

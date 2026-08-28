@@ -341,6 +341,7 @@ structure ValueNumbering : sig
               | (P.IS_POW2 n1, P.IS_POW2 n2) => (n1 = n2)
               | (P.BOXED, P.BOXED) => true
               | (P.UNBOXED, P.UNBOXED) => true
+              | (P.RAW, P.RAW) => true
               | (P.PEQL, P.PEQL) => true
               | (P.PNEQ, P.PNEQ) => true
               | (P.STREQL s1, P.STREQL s2) => (s1 = s2)

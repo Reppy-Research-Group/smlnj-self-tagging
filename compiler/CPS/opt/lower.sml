@@ -26,6 +26,8 @@
  *
  *      - replace `ROTL` and `ROTR` operations on tagged words with shifts
  *
+ *      - expand `UNWRAP` and `WRAP` operations on integers
+ *
  * Note that the bulk of the work is actually done in other modules; this
  * module is responsible for detecting places where things need transforming.
  *)
@@ -44,6 +46,9 @@ structure LowerCPS : sig
 
     val ity = Target.mlValueSz
 
+    fun numTy sz = C.NUMt{sz = sz, tag = Target.isTaggedIntSz sz}
+    val i64Ty = C.NUMt{sz = 64, tag = false}
+
     (* support for pure arithmetic operations on words (used in the
      * expansion of ROTL and ROTR on tagged types).
      *)
@@ -51,13 +56,21 @@ structure LowerCPS : sig
     fun letPure (oper, sz, args : C.value list, k : C.value -> C.cexp) = let
           val x = LV.mkLvar()
           in
-            C.PURE(pureOp(oper, sz), args, x, C.NUMt{sz = sz, tag = Target.isTaggedIntSz sz},
+            C.PURE(pureOp(oper, sz), args, x, numTy sz,
               k (C.VAR x))
           end
+
+    fun letCAST (arg, toTy, k) = let
+          val x = LV.mkLvar()
+          in
+            C.PURE(P.CAST, [arg], x, toTy, k (C.VAR x))
+          end
+
     fun num (i, sz) =
           C.NUM{ival = IntInf.fromInt i, ty = {sz = sz, tag = Target.isTaggedIntSz sz}}
     fun num' (w, sz) =
           C.NUM{ival = Word.toLargeInt w, ty = {sz = sz, tag = Target.isTaggedIntSz sz}}
+    fun num64 i = C.NUM{ival = i, ty = {sz = 64, tag = false}}
 
     fun transform cfun = let
 	  fun function (fk, f, formals, tl, e) = let
@@ -159,6 +172,51 @@ structure LowerCPS : sig
                           end
                         (* rotations of native words are handled by hardware *)
                         else C.PURE(p, [v1, v2], x, t, cexp e)
+                  | cexp (C.PURE(P.WRAP(P.INT 64), [v], x, t, e)) = let
+(* TODO: add a control to enable/disable self tagging *)
+                      val joinK = LV.namedLvar' "join"
+                      val res' = LV.mkLvar()
+                      in
+                        C.FIX([(C.KNOWN_CONT, joinK, [x], [t], cexp e)],
+                          letPure (P.ROTL, 64, [v, num64 3], fn y =>
+                          letPure (P.XORB, 64, [y, num64 6], fn z =>
+                            C.BRANCH(P.RAW, [z], LV.mkLvar(),
+                              (* true *)
+                              letCAST (z, t, fn res => C.APP(C.VAR joinK, [res])),
+                              (* false *)
+                              C.PURE(P.WRAP(P.INT 64), [v], res', t,
+                                C.APP(C.VAR joinK, [C.VAR res']))))))
+                      end
+                  | cexp (C.PURE(P.WRAP(P.INT sz), [v], x, t, e)) = let
+                      (* for smaller integer sizes, we use a tagged representation *)
+                      val y = LV.mkLvar()
+                      in
+                        C.PURE(P.COPY{from=sz, to=64}, [v], y, i64Ty,
+                        letPure (P.LSHIFT, 64, [C.VAR y, num64 1], fn z =>
+                        letPure (P.ORB, 64, [z, num64 1], fn res =>
+                        C.PURE(P.CAST, [res], x, t,
+                          cexp e))))
+                      end
+                  | cexp (C.PURE(P.UNWRAP(P.INT 64), [v], x, t, e)) = let
+                      val joinK = LV.namedLvar' "join"
+                      val y = LV.mkLvar()
+                      in
+                        C.FIX([(C.KNOWN_CONT, joinK, [x], [t], cexp e)],
+                          C.BRANCH(P.BOXED, [v], LV.mkLvar(),
+                            (* true *)
+                            C.PURE(P.UNWRAP(P.INT 64), [v], y, t,
+                              C.APP(C.VAR joinK, [C.VAR y])),
+                            (* false *)
+                            letCAST(v, i64Ty, fn z =>
+                            letPure(P.XORB, 64, [z, num64 6], fn w =>
+                            letPure(P.ROTR, 64, [w, num64 3], fn u =>
+                              C.APP(C.VAR joinK, [u]))))))
+                      end
+                  | cexp (C.PURE(P.UNWRAP(P.INT sz), [v], x, t, e)) =
+                      letCAST (v, i64Ty, fn y =>
+                      letPure (P.RSHIFTL, 64, [y, num64 1], fn z =>
+                      C.PURE(P.TRUNC{from=64, to=sz}, [z], x, t,
+                        cexp e)))
 		  | cexp (C.ARITH(P.TEST_INF sz, args, v, t, e)) =
 		      IntInfCnv.testInf (sz, args, v, t, cexp e)
 		  | cexp (C.ARITH(P.TEST{from, to}, args, v, t, e)) =

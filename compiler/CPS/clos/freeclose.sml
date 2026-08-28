@@ -104,7 +104,7 @@ structure FreeClose : FREECLOSE = struct
        in f(infinity,l)
       end
 
-    fun bfirst (P.BOXED | P.PNEQ | P.CMP{oper=P.NEQ,...}) = true
+    fun bfirst (P.BOXED | P.RAW | P.PNEQ | P.CMP{oper=P.NEQ,...}) = true
       | bfirst _ = false
 
     fun bsecond (P.UNBOXED | P.PEQL | P.CMP{oper=P.EQL,...}) = true

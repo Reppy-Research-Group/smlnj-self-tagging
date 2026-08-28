@@ -71,12 +71,14 @@ functor CPStoCFGFn (MS : MACH_SPEC) : sig
     fun zero sz = num (sz, 0)
     val one = num (ity, 1)
     val two = num (ity, 2)
+    val seven = num (ity, 7)
     fun allOnes sz = num (sz, ConstArith.bNot(sz, 0)) (* sz-wide 1's *)
     val signBit = num (ity, IntInf.<<(1, Word.fromInt ity - 0w1))
 
 (* FIXME: add support for branch probabilities *)
   (* unknown branch probability *)
     val unkProb = 0
+    val likelyProb = 990
 
   (* convert CPS types to CFG types *)
     fun cvtTy cpsTy = (case cpsTy
@@ -718,11 +720,12 @@ C.NUMt{sz=sz}
 		  | (P.UNBOX, [v]) => genV v	(* does this operation ever occur? *)
 		  | (P.UNWRAP(P.INT sz), [v]) =>
 		      if isTaggedInt sz
-			then error ["unwrap for tagged ints is not implemented"]
+			then error ["unexpected unwrap of i", Int.toString sz]
 			else let
                           (* load the full-word slot; truncate to sz after the load *)
-			  val load =
-			    looker(TP.RAW_LOAD{sz=ity, kind=TP.INT}, [genV v, zero ity])
+			  val load = looker(
+                                TP.RAW_LOAD{sz=ity, kind=TP.INT},
+                                [genV v, zero ity])
 			  in
 			    if sz < ity
 			      then pure(TP.TRUNC{from=ity, to=sz}, [load])
@@ -745,13 +748,27 @@ C.NUMt{sz=sz}
 	  and genBranch (test, args, k1, k2) = let
 		fun mkBr test' = C.BRANCH(test', List.map genV args, unkProb, k1, k2)
 	      (* translate a boxity test *)
-		fun boxedTest (v, kBoxed, kUnboxed) =
+		fun boxedTest (v, kTrue, kFalse) =
 		      C.BRANCH(
 			TP.CMP{oper=P.EQL, signed=false, sz=ity},
-			  [pureOp(TP.ANDB, ity, [v, one]), zero ity],
+			  [pureOp(TP.ANDB, ity, [v, num (ity, 7)]), zero ity],
 			unkProb,
-			kBoxed,
-			kUnboxed)
+			kTrue,
+			kFalse)
+                (* translate a test for self-tagged raw values.  This test is
+                 * implemented as a test of the low three bits.  If they are
+                 * either 000 or 010, then the value is not raw.  The test is
+                 *
+                 *      ((v & 0b101) != 0)
+                 *)
+                fun rawTest (v, kTrue, kFalse) =
+                      C.BRANCH(
+                        TP.CMP{oper=P.NEQ, signed=false, sz=ity}, [
+			  pureOp(TP.ANDB, ity, [v, num(ity, 5)]),
+                          zero ity],
+			likelyProb,
+			kTrue,
+			kFalse)
 		in
 		  case (test, args)
 		   of (P.CMP{oper, kind=CPS.P.INT sz}, _) =>
@@ -779,6 +796,7 @@ C.NUMt{sz=sz}
                         end
 		    | (P.BOXED, [v]) => boxedTest (genV v, k1, k2)
 		    | (P.UNBOXED, [v]) => boxedTest (genV v, k2, k1)
+                    | (P.RAW, [v]) => rawTest (genV v, k1, k2)
 		    | (P.PEQL, _) => mkBr TP.PEQL
 		    | (P.PNEQ, _) => mkBr TP.PNEQ
 		    | _ => error [".branch: bogus test ", PPCps.branchToString test]

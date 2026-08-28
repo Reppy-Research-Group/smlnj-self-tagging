@@ -60,6 +60,7 @@ structure CPSUtil : sig
       | opp (P.IS_POW2 _) = bug "IS_POW2 has no opposite"
       | opp P.BOXED = P.UNBOXED
       | opp P.UNBOXED = P.BOXED
+      | opp P.RAW = bug "RAW has no opposite"
       | opp P.PEQL = P.PNEQ
       | opp P.PNEQ = P.PEQL
       | opp (P.STREQL _) = bug "STREQL has no opposite"

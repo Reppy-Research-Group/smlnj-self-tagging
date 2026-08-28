@@ -91,6 +91,7 @@ structure PPCps : PPCPS =
       | branchToString (P.IS_POW2 sz) = "ispowerof2u" ^ Int.toString sz
       | branchToString P.BOXED = "boxed"
       | branchToString P.UNBOXED = "unboxed"
+      | branchToString P.RAW = "raw"
       | branchToString P.PEQL = "peql"
       | branchToString P.PNEQ = "pneq"
       | branchToString (P.STREQL s) = concat["streql(\"", String.toString s, "\")"]
