@@ -184,7 +184,7 @@ structure LowerCPS : sig
                       val joinK = LV.namedLvar' "join"
                       val res' = LV.mkLvar()
                       in
-                        C.FIX([(C.KNOWN_CONT, joinK, [x], [t], cexp e)],
+                        C.FIX([(C.CONT, joinK, [x], [t], cexp e)],
                           letPure (P.ROTL, 64, [v, num64 3], fn y =>
                           letPure (P.XORB, 64, [y, num64 6], fn z =>
                             C.BRANCH(P.RAW, [z], LV.mkLvar(),
@@ -208,7 +208,7 @@ structure LowerCPS : sig
                       val joinK = LV.namedLvar' "join"
                       val y = LV.mkLvar()
                       in
-                        C.FIX([(C.KNOWN_CONT, joinK, [x], [t], cexp e)],
+                        C.FIX([(C.CONT, joinK, [x], [t], cexp e)],
                           C.BRANCH(P.BOXED, [v], LV.mkLvar(),
                             (* true *)
                             C.PURE(P.UNWRAP(P.INT 64), [v], y, t,
