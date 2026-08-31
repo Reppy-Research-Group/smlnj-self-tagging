@@ -170,26 +170,29 @@ structure Literals : LITERALS =
     (* zero-extend the number n to mlValueSz *)
     fun extendIntToNativeBytes (sz, n) = let
           val n = if sz < Target.mlValueSz
-            then let
-              val mask = IntInf.-(IntInf.<<(1, Word.fromInt sz), 1)
-              in
-                IntInf.andb (n, mask)
-              end
-            else n
+                then let
+                  val mask = IntInf.-(IntInf.<<(1, Word.fromInt sz), 1)
+                  in
+                    IntInf.andb (n, mask)
+                  end
+                else n
           in
             case Target.mlValueSz
-              of 64 => largeIntToBytes64 n
-               | 32 => largeIntToBytes32 n
-               | sz => bug ("unknown mlValueSz " ^ Int.toString sz)
+             of 64 => largeIntToBytes64 n
+              | 32 => largeIntToBytes32 n
+              | sz => bug ("unknown mlValueSz " ^ Int.toString sz)
+            (* end case *)
           end
 
     fun largeIntToBytes (32, n) = largeIntToBytes32 n
       | largeIntToBytes (64, n) = largeIntToBytes64 n
-      | largeIntToBytes (8, n) = (* DEFAULT64: zero extend word 8 literals *)
-          (case Target.mlValueSz
-             of 64 => largeIntToBytes64 n
-              | 32 => largeIntToBytes32 n
-              | sz => bug ("unknown mlValueSz " ^ Int.toString sz))
+      | largeIntToBytes (8, n) = (
+          (* DEFAULT64: zero extend word 8 literals *)
+          case Target.mlValueSz
+           of 64 => largeIntToBytes64 n
+            | 32 => largeIntToBytes32 n
+            | sz => bug ("unknown mlValueSz " ^ Int.toString sz)
+          (* end case *))
       | largeIntToBytes _ = bug "bogus integer size"
 
     fun real64ToBytes r = #1(Real64ToBits.toBits r)
@@ -263,8 +266,7 @@ structure Literals : LITERALS =
     fun encRAW (buf, data) = let
           val nbytes = W8V.length data
           (*>DEBUG*)
-          val _ =
-            if nbytes mod valueSzb <> 0 then bug "RAW data is not word aligned" else ()
+          val _ = if nbytes mod valueSzb <> 0 then bug "RAW data is not word aligned" else ()
           (*<DEBUG*)
           val len = nbytes div valueSzb
           (*>DEBUG*)
